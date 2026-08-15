@@ -1064,25 +1064,28 @@ body:not(.auth-locked) #auth-gate { display: none; }
         }, 150);
     }
 
-    // LOAD DADOS (Async Await robusto)
-    async function loadJson(url) {
-        try {
-            let res = await fetch(url);
-            if (res.ok) return await res.json();
-            let fb = url.replace(".geojson", "");
-            if(fb !== url) {
-                res = await fetch(fb);
-                if (res.ok) return await res.json();
-            }
-        } catch(e) {}
-        return null;
+    // ATLAS_PRIVATE_DATA_V1
+    // Dados geográficos protegidos por Supabase + RLS.
+    async function loadGeoJsonPrivado(nome) {
+        const { data, error } = await supabaseClient
+            .from("atlas_geojson_privado")
+            .select("conteudo")
+            .eq("nome", nome)
+            .single();
+
+        if (error || !data?.conteudo) {
+            console.error(`Falha ao carregar ${nome}:`, error);
+            throw new Error(`Não foi possível carregar ${nome}.`);
+        }
+
+        return data.conteudo;
     }
 
     async function init() {
         const [bairros, locais, setores] = await Promise.all([
-            loadJson("bairros_itajai.geojson"),
-            loadJson("locais_de_votacao_e_secoes.geojson"),
-            loadJson("setores_itajai_2022_demografico.geojson")
+            loadGeoJsonPrivado("bairros_itajai.geojson"),
+            loadGeoJsonPrivado("locais_de_votacao_e_secoes.geojson"),
+            loadGeoJsonPrivado("setores_itajai_2022_demografico.geojson")
         ]);
 
         geoBairros = bairros;
@@ -1803,14 +1806,41 @@ body:not(.auth-locked) #auth-gate { display: none; }
     }
 
     async function liberarAtlas(user) {
+        const { data: acesso, error: acessoError } = await supabaseClient
+            .from("usuarios_autorizados")
+            .select("nome,email,perfil,ativo")
+            .eq("user_id", user.id)
+            .eq("ativo", true)
+            .maybeSingle();
+
+        if (acessoError || !acesso) {
+            console.warn("Acesso recusado para usuário autenticado:", user?.email);
+            await supabaseClient.auth.signOut();
+            bloquearAtlas();
+            setAuthMessage("Sua conta Google foi autenticada, mas não possui autorização para acessar o Atlas.");
+            return;
+        }
+
         document.body.classList.remove("auth-locked");
         const userEmail = document.getElementById("auth-user-email");
-        if (userEmail) userEmail.textContent = user?.email || "";
+        if (userEmail) {
+            const nome = acesso.nome || user?.user_metadata?.full_name || user?.email || "Usuário";
+            const perfil = (acesso.perfil || "visualizacao").toUpperCase();
+            userEmail.textContent = `${nome} • ${perfil}`;
+            userEmail.title = acesso.email || user?.email || "";
+        }
 
         if (!atlasInicializado) {
             atlasInicializado = true;
-            try { await init(); }
-            catch (e) { console.error("Erro ao inicializar o Atlas:", e); }
+            try {
+                await init();
+            } catch (e) {
+                atlasInicializado = false;
+                console.error("Erro ao inicializar o Atlas:", e);
+                document.body.classList.add("auth-locked");
+                setAuthMessage("Não foi possível carregar os dados protegidos do Atlas.");
+                return;
+            }
         }
 
         setTimeout(() => {
@@ -1825,18 +1855,6 @@ body:not(.auth-locked) #auth-gate { display: none; }
         if (userEmail) userEmail.textContent = "";
     }
 
-    async function entrarAtlas(email, password) {
-        setAuthMessage("");
-        setAuthLoading(true);
-        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-        setAuthLoading(false);
-        if (error) {
-            console.warn("Falha no login:", error.message);
-            setAuthMessage("E-mail ou senha inválidos.");
-            return;
-        }
-        if (data?.user) await liberarAtlas(data.user);
-    }
 
     async function entrarComGoogle() {
         setAuthMessage("");
