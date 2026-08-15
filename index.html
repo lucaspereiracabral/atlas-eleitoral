@@ -363,7 +363,7 @@
             <div id="sidebar-bairros">
                 <div class="sidebar-header">
                     <span class="sidebar-title">Bairros e Locais</span>
-                    <button class="btn-reset" onclick="resetarMapa()">🔄 Ver Todos</button>
+                    <button class="btn-reset" onclick="resetarMapa()">🔄 Ver Itajaí</button>
                 </div>
                 <div id="lista-bairros-conteudo" style="overflow-y: auto; flex: 1;">Calculando dados espaciais...</div>
             </div>
@@ -440,11 +440,16 @@
             evento.currentTarget.classList.add('active');
 
             if (idAba === 'mapas') {
-                setTimeout(() => { map.invalidateSize(); }, 100);
+                setTimeout(() => { 
+                    map.invalidateSize(); 
+                    if (camadaBairrosGlobal) {
+                        map.setView([-26.91, -48.66], 13);
+                    }
+                }, 100);
             }
         }
 
-        // Inicialização do Mapa (Leaflet)
+        // Inicialização do Mapa (Leaflet centrado em Itajaí)
         const map = L.map('map').setView([-26.91, -48.66], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
@@ -462,14 +467,9 @@
 
         let camadaBairrosGlobal = null;
         let camadasLocaisGrupo = L.layerGroup().addTo(map);
-        let dadosBairrosCache = null;
-        let dadosLocaisCache = null;
 
         function resetarMapa() {
-            if (camadaBairrosGlobal) {
-                map.fitBounds(camadaBairrosGlobal.getBounds());
-            }
-            // Remove destaque visual ativo
+            map.setView([-26.91, -48.66], 13);
             document.querySelectorAll('.bairro-item').forEach(el => el.classList.remove('ativo'));
         }
 
@@ -478,9 +478,7 @@
             fetch('bairros_itajai.geojson').then(res => res.json()).catch(() => null),
             fetch('locais_de_votacao_e_secoes.geojson').then(res => res.json()).catch(() => null)
         ]).then(([bairrosGeo, locaisGeo]) => {
-            dadosBairrosCache = bairrosGeo;
-            dadosLocaisCache = locaisGeo;
-
+            
             let eleitoresPorBairro = {};
             let locaisPorBairro = {};
 
@@ -520,6 +518,11 @@
                     locaisPorBairro[bairroLoc].push({ nome: nomeLocal, eleitores: eleitores });
                 });
 
+                // Ordena os locais de votação de cada bairro do maior para o menor número de eleitores
+                for (let bairro in locaisPorBairro) {
+                    locaisPorBairro[bairro].sort((a, b) => b.eleitores - a.eleitores);
+                }
+
                 // Plota todos os pontos de votação inicialmente
                 locaisGeo.features.forEach(feature => {
                     const p = feature.properties || {};
@@ -542,12 +545,12 @@
                 });
             }
 
-            // 1. Plota Bairros no Mapa (SEM preenchimento interno)
+            // 1. Plota Bairros no Mapa (SEM preenchimento e com contornos mais finos weight: 1)
             if (bairrosGeo) {
                 camadaBairrosGlobal = L.geoJSON(bairrosGeo, {
                     style: {
                         color: '#1e3a8a',
-                        weight: 2,
+                        weight: 1,
                         fillColor: 'transparent',
                         fillOpacity: 0
                     },
@@ -557,11 +560,9 @@
                         layer.bindPopup(`<b>Bairro:</b> ${nomeBairro}`);
                     }
                 }).addTo(map);
-
-                map.fitBounds(camadaBairrosGlobal.getBounds());
             }
 
-            // 2. Monta a Barra Lateral com Bairros e sub-lista de Locais
+            // 2. Monta a Barra Lateral com Bairros e sub-lista de Locais ordenada
             const containerSidebar = document.getElementById('lista-bairros-conteudo');
             let htmlBairros = "";
             
@@ -581,7 +582,7 @@
                             <span class="bairro-eleitores">${total.toLocaleString('pt-BR')} el.</span>
                         </div>
                         <div class="locais-container">
-                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--primary-color); margin-top: 4px;">Locais de Votação:</div>
+                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--primary-color); margin-top: 4px;">Locais de Votação (por eleitores):</div>
                             ${htmlLocaisSub || '<span style="font-size:0.75rem;">Nenhum local</span>'}
                         </div>
                     </div>
@@ -591,9 +592,8 @@
             containerSidebar.innerHTML = htmlBairros || "Nenhum dado encontrado.";
         });
 
-        // Função para dar zoom no bairro clicado na lista lateral
+        // Função para dar zoom exato no bairro clicado
         window.focarBairro = function(nomeBairro, elementoHtml) {
-            // Alterna estado ativo na lista
             document.querySelectorAll('.bairro-item').forEach(el => el.classList.remove('ativo'));
             elementoHtml.classList.add('ativo');
 
@@ -603,7 +603,7 @@
                 const props = layer.feature.properties || {};
                 const nome = obterValorGeo(props, ['nome', 'bairro', 'NOME', 'BAIRRO', 'nome_bairro']);
                 if (nome && nome.toLowerCase() === nomeBairro.toLowerCase()) {
-                    map.fitBounds(layer.getBounds(), { padding: [30, 30], maxZoom: 15 });
+                    map.fitBounds(layer.getBounds(), { padding: [40, 40], maxZoom: 15 });
                     layer.openPopup();
                 }
             });
