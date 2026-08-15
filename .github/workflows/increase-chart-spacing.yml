@@ -1,0 +1,35 @@
+name: Increase mobile chart spacing
+on:
+  push:
+    paths:
+      - '.github/workflows/increase-chart-spacing.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Increase spacing between horizontal bars
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('analytics.js')
+          s=p.read_text()
+          old="entries.length*(mobile?38:40)+110"
+          new="entries.length*(mobile?50:46)+120"
+          count=s.count(old)
+          if count < 2:
+              raise SystemExit(f'Expected at least 2 chart spacing occurrences, found {count}')
+          s=s.replace(old,new)
+          s=s.replace("barThickness:mobile?22:24,maxBarThickness:26", "barThickness:mobile?24:26,maxBarThickness:28")
+          p.write_text(s)
+          print(f'Updated {count} chart spacing occurrences')
+          PY
+      - name: Commit changes
+        run: |
+          git config user.name "GeoCode"
+          git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
+          git add analytics.js
+          git commit -m "Increase spacing between chart bars" || exit 0
+          git push
