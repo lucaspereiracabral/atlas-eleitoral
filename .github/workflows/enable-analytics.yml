@@ -1,0 +1,31 @@
+name: Enable Analytics Modules
+on:
+  push:
+    paths:
+      - '.github/workflows/enable-analytics.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch index
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          if 'analytics.css' not in s:
+              s=s.replace('</head>','    <link rel="stylesheet" href="analytics.css?v=1">\n</head>')
+          if 'analytics.js' not in s:
+              s=s.replace('</body>','    <script src="analytics.js?v=1"></script>\n</body>')
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git diff --cached --quiet || git commit -m 'Enable electorate and affiliation analytics'
+          git push
