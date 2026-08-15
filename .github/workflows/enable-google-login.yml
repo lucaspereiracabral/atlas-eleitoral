@@ -33,10 +33,7 @@ jobs:
               'Entre com sua conta Google autorizada para acessar a plataforma.'
           )
 
-          form_pattern = re.compile(
-              r'<form id="auth-form">.*?</form>',
-              re.S
-          )
+          form_pattern = re.compile(r'<form id="auth-form">.*?</form>', re.S)
 
           google_button = r'''
           <button id="google-login-button" class="auth-button" type="button" onclick="entrarComGoogle()" style="display:flex;align-items:center;justify-content:center;gap:10px;background:#ffffff;color:#334155;border:1px solid #dbe3ef;box-shadow:0 1px 2px rgba(15,23,42,.05);">
@@ -60,51 +57,50 @@ jobs:
               'Acesso destinado a contas Google previamente autorizadas.'
           )
 
-          marker = '              async function sairAtlas() {'
+          marker = '    async function sairAtlas() {'
           google_js = r'''
-              async function entrarComGoogle() {
-                  setAuthMessage("");
+    async function entrarComGoogle() {
+        setAuthMessage("");
 
-                  const button = document.getElementById("google-login-button");
-                  if (button) {
-                      button.disabled = true;
-                      button.style.opacity = ".65";
-                  }
+        const button = document.getElementById("google-login-button");
+        if (button) {
+            button.disabled = true;
+            button.style.opacity = ".65";
+        }
 
-                  const redirectTo = `${window.location.origin}${window.location.pathname}`;
+        const redirectTo = `${window.location.origin}${window.location.pathname}`;
 
-                  const { error } = await supabaseClient.auth.signInWithOAuth({
-                      provider: "google",
-                      options: {
-                          redirectTo,
-                          queryParams: {
-                              access_type: "offline",
-                              prompt: "select_account"
-                          }
-                      }
-                  });
+        const { error } = await supabaseClient.auth.signInWithOAuth({
+            provider: "google",
+            options: {
+                redirectTo,
+                queryParams: {
+                    access_type: "offline",
+                    prompt: "select_account"
+                }
+            }
+        });
 
-                  if (error) {
-                      console.error("Erro no login Google:", error);
-                      setAuthMessage("Não foi possível entrar com Google. Verifique a configuração do provedor no Supabase.");
+        if (error) {
+            console.error("Erro no login Google:", error);
+            setAuthMessage("Não foi possível entrar com Google. Verifique a configuração do provedor no Supabase.");
 
-                      if (button) {
-                          button.disabled = false;
-                          button.style.opacity = "1";
-                      }
-                  }
-              }
+            if (button) {
+                button.disabled = false;
+                button.style.opacity = "1";
+            }
+        }
+    }
 
-          '''
+'''
 
           if marker not in html:
               raise RuntimeError('sairAtlas marker not found.')
           html = html.replace(marker, google_js + marker, 1)
 
-          # Remove listener do formulário de email/senha; o botão Google não usa form.
           html = re.sub(
               r'\n\s*const authForm = document\.getElementById\("auth-form"\);.*?\n\s*}\n\n\s*supabaseClient\.auth\.onAuthStateChange',
-              '\n\n              supabaseClient.auth.onAuthStateChange',
+              '\n\n    supabaseClient.auth.onAuthStateChange',
               html,
               count=1,
               flags=re.S
