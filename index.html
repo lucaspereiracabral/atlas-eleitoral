@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Observatório de Dados e Indicadores</title>
+    <title>Observatório de Dados e Indicadores Eleitorais</title>
     
     <!-- Leaflet CSS para o Mapa -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -197,11 +197,11 @@
     <header>
         <div class="logo-area">
             <h1>Observatório Municipal</h1>
-            <div class="subtitle">Plataforma de Dados Eleitorais e Geográficos</div>
+            <div class="subtitle">Plataforma de Dados Eleitorais e Geográficos - Itajaí</div>
         </div>
         <nav>
             <button class="nav-btn active" onclick="mudarAba('inicio', event)">Início</button>
-            <button class="nav-btn" onclick="mudarAba('mapas', event)">Mapas</button>
+            <button class="nav-btn" onclick="mudarAba('mapas', event)">Locais de Votação</button>
             <button class="nav-btn" onclick="mudarAba('graficos', event)">Gráficos</button>
         </nav>
     </header>
@@ -210,16 +210,16 @@
     <div id="inicio" class="tab-content active">
         <div class="home-container">
             <h2>Sobre o Projeto</h2>
-            <p>Este portal tem como objetivo principal centralizar, analisar e disponibilizar dados estatísticos, geográficos e informações públicas consolidadas. A plataforma busca fomentar a transparência e apoiar análises territoriais e comportamentais com base em fontes oficiais (TRE e dados abertos).</p>
+            <p>Este portal tem como objetivo principal centralizar, analisar e disponibilizar dados estatísticos e geográficos de Itajaí. A plataforma integra bases de dados oficiais para apoiar análises territoriais e o mapeamento de infraestrutura pública e eleitoral.</p>
             
             <div class="home-grid">
                 <div class="home-card">
-                    <h3>🗺️ Análise Espacial</h3>
-                    <p>Explore a distribuição geográfica dos dados através de mapas interativos desenvolvidos sob camadas municipais e regionais.</p>
+                    <h3>🗺️ Análise de Votação</h3>
+                    <p>Visualize os locais de votação espacializados no município, com dimensionamento proporcional ao número de eleitores por seção.</p>
                 </div>
                 <div class="home-card">
-                    <h3>📊 Estatísticas e Séries</h3>
-                    <p>Consulte gráficos dinâmicos com cruzamento de variáveis socioeconômicas, demográficas e indicadores públicos.</p>
+                    <h3>📊 Estatísticas Municipais</h3>
+                    <p>Consulte gráficos dinâmicos com cruzamento de variáveis demográficas e indicadores públicos da região.</p>
                 </div>
             </div>
         </div>
@@ -227,7 +227,7 @@
 
     <!-- ABA 2: MAPAS -->
     <div id="mapas" class="tab-content">
-        <div style="margin-bottom: 12px; font-weight: 600; color: var(--primary-color);">Visualização Geográfica Espacial</div>
+        <div style="margin-bottom: 12px; font-weight: 600; color: var(--primary-color);">Distribuição Espacial dos Locais de Votação</div>
         <div id="map"></div>
     </div>
 
@@ -235,7 +235,7 @@
     <div id="graficos" class="tab-content">
         <div class="charts-grid">
             <div class="chart-box">
-                <div class="chart-title">Distribuição por Categoria</div>
+                <div class="chart-title">Eleitores por Zona/Local</div>
                 <div class="chart-container">
                     <canvas id="graficoBarras"></canvas>
                 </div>
@@ -256,25 +256,22 @@
     <script>
         // Lógica de Alternância das Guias (Abas)
         function mudarAba(idAba, evento) {
-            // Esconde todas as abas
             const abas = document.querySelectorAll('.tab-content');
             abas.forEach( aba => aba.classList.remove('active'));
 
-            // Remove a classe active de todos os botões
             const botoes = document.querySelectorAll('.nav-btn');
             botoes.forEach( btn => btn.classList.remove('active'));
 
-            // Ativa a aba e o botão correspondente
             document.getElementById(idAba).classList.add('active');
             evento.currentTarget.classList.add('active');
 
-            // Se mudou para a aba de mapas, força o Leaflet a recalcular o tamanho correto
+            // Corrige o tamanho do mapa se o usuário navegar para a aba correspondente
             if (idAba === 'mapas') {
                 setTimeout(() => { map.invalidateSize(); }, 100);
             }
         }
 
-        // Inicialização do Mapa (Leaflet)
+        // Inicialização do Mapa (Leaflet centrado em Itajaí)
         const map = L.map('map').setView([-26.91, -48.66], 13);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -282,18 +279,60 @@
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
-        L.marker([-26.91, -48.66]).addTo(map)
-            .bindPopup('<b>Área Central</b><br>Ponto de referência institucional.')
-            .openPopup();
+        // Carregamento do arquivo GeoJSON de Locais de Votação
+        fetch('locais_de_votacao_e_secoes.geojson')
+            .then(resposta => {
+                if (!resposta.ok) throw new Error("Erro ao carregar o arquivo GeoJSON.");
+                return resposta.json();
+            })
+            .then(dadosGeoJSON => {
+                L.geoJSON(dadosGeoJSON, {
+                    pointToLayer: function (feature, latlng) {
+                        // Altere 'eleitores' se a propriedade no seu GeoJSON tiver outro nome exato (ex: num_eleitores, total_eleitores)
+                        const props = feature.properties;
+                        const eleitores = props.eleitores || props.num_eleitores || props.total || 100;
+                        
+                        // Define o tamanho do círculo proporcional ao número de eleitores
+                        const raio = Math.max(6, Math.min(22, eleitores / 250));
+
+                        return L.circleMarker(latlng, {
+                            radius: raio,
+                            fillColor: "#0284c7",
+                            color: "#ffffff",
+                            weight: 1.5,
+                            opacity: 1,
+                            fillOpacity: 0.85
+                        });
+                    },
+                    onEachFeature: function (feature, layer) {
+                        const props = feature.properties;
+                        // Ajuste os nomes abaixo conforme os atributos do seu GeoJSON (ex: nome_local, endereco, etc.)
+                        const nome = props.nome || props.local || props.nome_local || "Local de Votação";
+                        const secoes = props.secoes || props.secao || "Não informada";
+                        const eleitores = props.eleitores || props.num_eleitores || "Não informado";
+
+                        layer.bindPopup(`
+                            <div style="font-family: sans-serif; font-size: 0.9rem; line-height: 1.4;">
+                                <b>${nome}</b><br>
+                                🗳️ Seções: ${secoes}<br>
+                                👥 Eleitores: <b>${eleitores}</b>
+                            </div>
+                        `);
+                    }
+                }).addTo(map);
+            })
+            .catch(erro => {
+                console.error("Aviso ao carregar GeoJSON:", erro);
+            });
 
         // Inicialização dos Gráficos (Chart.js)
         const ctxBar = document.getElementById('graficoBarras').getContext('2d');
         new Chart(ctxBar, {
             type: 'bar',
             data: {
-                labels: ['Zona 01', 'Zona 02', 'Zona 03', 'Zona 04', 'Zona 05'],
+                labels: ['Local A', 'Local B', 'Local C', 'Local D', 'Local E'],
                 datasets: [{
-                    label: 'Indicador Principal',
+                    label: 'Eleitores',
                     data: [1200, 1900, 1500, 2200, 1800],
                     backgroundColor: '#0284c7',
                     borderRadius: 4
