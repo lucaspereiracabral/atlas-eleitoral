@@ -1,0 +1,19 @@
+name: Patch profile age chart
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-profile-age-chart.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/patch_profile_age_chart.py
+      - run: |
+          git config user.name "GeoCode"
+          git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
+          git add analytics.js
+          git commit -m "Align profile age chart with party chart"
+          git push
