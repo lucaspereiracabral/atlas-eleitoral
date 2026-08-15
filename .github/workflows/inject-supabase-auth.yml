@@ -1,0 +1,239 @@
+name: Inject Supabase Auth
+
+on:
+  push:
+    paths:
+      - '.github/workflows/inject-supabase-auth.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  inject-auth:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Inject Supabase authentication into index.html
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('index.html')
+          html = path.read_text(encoding='utf-8')
+
+          if 'SUPABASE AUTH GATE' in html:
+              print('Supabase auth already injected; nothing to do.')
+              raise SystemExit(0)
+
+          html = html.replace('<body>', '<body class="auth-locked">', 1)
+
+          auth_css = r'''
+          /* =====================================================
+             SUPABASE AUTH GATE
+          ====================================================== */
+          body.auth-locked > *:not(#auth-gate) { display: none !important; }
+          #auth-gate {
+              position: fixed; inset: 0; z-index: 20000;
+              display: flex; align-items: center; justify-content: center;
+              padding: 24px;
+              background:
+                  radial-gradient(circle at 80% 10%, rgba(37,99,235,.18), transparent 30%),
+                  radial-gradient(circle at 10% 90%, rgba(14,165,233,.12), transparent 28%),
+                  linear-gradient(135deg, #0f172a 0%, #172554 55%, #0f172a 100%);
+          }
+          body:not(.auth-locked) #auth-gate { display: none; }
+          .auth-card {
+              width: min(430px, 100%); background: rgba(255,255,255,.98);
+              border: 1px solid rgba(255,255,255,.35); border-radius: 18px;
+              box-shadow: 0 24px 70px rgba(2,6,23,.35); padding: 34px;
+          }
+          .auth-brand { display:flex; align-items:center; gap:14px; margin-bottom:26px; }
+          .auth-brand img { width:48px; height:48px; object-fit:contain; }
+          .auth-brand h1 { font-size:20px; color:#0f172a; letter-spacing:-.5px; margin:0; }
+          .auth-brand p { margin-top:4px; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:.5px; }
+          .auth-title { font-size:15px; font-weight:800; color:#0f172a; margin-bottom:6px; }
+          .auth-subtitle { font-size:12px; line-height:1.55; color:#64748b; margin-bottom:20px; }
+          .auth-label { display:block; margin:12px 0 6px; font-size:11px; font-weight:700; color:#334155; }
+          .auth-input { width:100%; height:44px; padding:0 13px; border:1px solid #dbe3ef; border-radius:9px; outline:none; font-size:13px; background:#fff; color:#0f172a; }
+          .auth-input:focus { border-color:#60a5fa; box-shadow:0 0 0 3px #dbeafe; }
+          .auth-button { width:100%; height:44px; margin-top:18px; border:0; border-radius:9px; background:#2563eb; color:#fff; font-size:12px; font-weight:800; cursor:pointer; transition:.2s ease; }
+          .auth-button:hover { background:#1d4ed8; transform:translateY(-1px); }
+          .auth-button:disabled { opacity:.65; cursor:wait; transform:none; }
+          .auth-message { min-height:18px; margin-top:12px; font-size:11px; font-weight:600; color:#dc2626; text-align:center; }
+          .auth-footer { margin-top:20px; padding-top:16px; border-top:1px solid #e2e8f0; font-size:10px; line-height:1.5; color:#94a3b8; text-align:center; }
+          .auth-user-area { display:flex; align-items:center; gap:9px; margin-left:8px; }
+          .auth-user-email { max-width:190px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:10px; font-weight:700; color:#64748b; }
+          .auth-logout { border:1px solid #e2e8f0; background:#fff; color:#475569; border-radius:7px; padding:7px 9px; font-size:10px; font-weight:700; cursor:pointer; }
+          .auth-logout:hover { border-color:#bfdbfe; color:#2563eb; background:#eff6ff; }
+          @media (max-width:1100px) { .auth-user-email { display:none; } }
+          '''
+
+          html = html.replace('</style>', auth_css + '\n</style>', 1)
+
+          auth_gate = r'''
+          <!-- SUPABASE AUTH GATE -->
+          <div id="auth-gate" aria-live="polite">
+              <div class="auth-card">
+                  <div class="auth-brand">
+                      <img src="atlas%20logo.png" alt="Atlas Eleitoral">
+                      <div>
+                          <h1>Atlas Eleitoral de Itajaí</h1>
+                          <p>Inteligência Geográfica • TRE & IBGE</p>
+                      </div>
+                  </div>
+                  <div class="auth-title">Acesso restrito</div>
+                  <div class="auth-subtitle">Entre com o e-mail e a senha cadastrados para acessar a plataforma.</div>
+                  <form id="auth-form">
+                      <label class="auth-label" for="auth-email">E-mail</label>
+                      <input id="auth-email" class="auth-input" type="email" autocomplete="username" placeholder="nome@exemplo.com" required>
+                      <label class="auth-label" for="auth-password">Senha</label>
+                      <input id="auth-password" class="auth-input" type="password" autocomplete="current-password" placeholder="Digite sua senha" required>
+                      <button id="auth-submit" class="auth-button" type="submit">Entrar</button>
+                      <div id="auth-message" class="auth-message"></div>
+                  </form>
+                  <div class="auth-footer">Acesso destinado a usuários previamente cadastrados.</div>
+              </div>
+          </div>
+          '''
+
+          html = html.replace('<body class="auth-locked">', '<body class="auth-locked">\n' + auth_gate, 1)
+
+          user_area = r'''
+              <div class="auth-user-area">
+                  <span id="auth-user-email" class="auth-user-email"></span>
+                  <button class="auth-logout" type="button" onclick="sairAtlas()">Sair</button>
+              </div>
+          '''
+          html = html.replace('    </nav>\n</header>', '    </nav>\n' + user_area + '</header>', 1)
+
+          turf = '<script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>'
+          html = html.replace(turf, turf + '\n<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>', 1)
+
+          html = html.replace('    // Inicialização direta\n    init();', '    // Inicialização controlada pela autenticação Supabase', 1)
+
+          auth_js = r'''
+              /* =========================================================
+                 SUPABASE AUTH
+              ========================================================== */
+              const SUPABASE_URL = "https://hcrxnoptatkzlghamykt.supabase.co";
+              const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_SfE8ucasIUUK1K7vAxIrig_hOkX85gh";
+              const supabaseClient = supabase.createClient(
+                  SUPABASE_URL,
+                  SUPABASE_PUBLISHABLE_KEY,
+                  { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
+              );
+
+              let atlasInicializado = false;
+
+              function setAuthMessage(texto) {
+                  const el = document.getElementById("auth-message");
+                  if (el) el.textContent = texto || "";
+              }
+
+              function setAuthLoading(ativo) {
+                  const btn = document.getElementById("auth-submit");
+                  if (!btn) return;
+                  btn.disabled = !!ativo;
+                  btn.textContent = ativo ? "Entrando..." : "Entrar";
+              }
+
+              async function liberarAtlas(user) {
+                  document.body.classList.remove("auth-locked");
+                  const userEmail = document.getElementById("auth-user-email");
+                  if (userEmail) userEmail.textContent = user?.email || "";
+
+                  if (!atlasInicializado) {
+                      atlasInicializado = true;
+                      try { await init(); }
+                      catch (e) { console.error("Erro ao inicializar o Atlas:", e); }
+                  }
+
+                  setTimeout(() => {
+                      try { mapTRE.invalidateSize(); } catch (e) {}
+                      try { mapIBGE.invalidateSize(); } catch (e) {}
+                  }, 250);
+              }
+
+              function bloquearAtlas() {
+                  document.body.classList.add("auth-locked");
+                  const userEmail = document.getElementById("auth-user-email");
+                  if (userEmail) userEmail.textContent = "";
+              }
+
+              async function entrarAtlas(email, password) {
+                  setAuthMessage("");
+                  setAuthLoading(true);
+                  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                  setAuthLoading(false);
+                  if (error) {
+                      console.warn("Falha no login:", error.message);
+                      setAuthMessage("E-mail ou senha inválidos.");
+                      return;
+                  }
+                  if (data?.user) await liberarAtlas(data.user);
+              }
+
+              async function sairAtlas() {
+                  await supabaseClient.auth.signOut();
+                  bloquearAtlas();
+                  const email = document.getElementById("auth-email");
+                  const senha = document.getElementById("auth-password");
+                  if (email) email.value = "";
+                  if (senha) senha.value = "";
+                  setAuthMessage("");
+                  setTimeout(() => email?.focus(), 50);
+              }
+
+              async function verificarSessaoAtlas() {
+                  const { data: { session }, error } = await supabaseClient.auth.getSession();
+                  if (error) {
+                      console.error("Erro ao verificar sessão:", error);
+                      bloquearAtlas();
+                      return;
+                  }
+                  if (session?.user) await liberarAtlas(session.user);
+                  else bloquearAtlas();
+              }
+
+              const authForm = document.getElementById("auth-form");
+              if (authForm) {
+                  authForm.addEventListener("submit", async (event) => {
+                      event.preventDefault();
+                      const email = document.getElementById("auth-email").value.trim();
+                      const password = document.getElementById("auth-password").value;
+                      await entrarAtlas(email, password);
+                  });
+              }
+
+              supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                  if (event === "SIGNED_OUT") {
+                      bloquearAtlas();
+                      return;
+                  }
+                  if (session?.user) await liberarAtlas(session.user);
+              });
+
+              verificarSessaoAtlas();
+          '''
+
+          idx = html.rfind('</script>')
+          if idx == -1:
+              raise RuntimeError('Closing script tag not found.')
+          html = html[:idx] + auth_js + '\n' + html[idx:]
+
+          path.write_text(html, encoding='utf-8')
+          print('Supabase authentication injected successfully.')
+
+      - name: Commit updated index.html
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Add Supabase authentication gate"
+          git push
