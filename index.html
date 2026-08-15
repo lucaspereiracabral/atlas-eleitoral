@@ -1,24 +1,73 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Observatório de Dados e Indicadores Eleitorais</title>
-    
-    <!-- Leaflet CSS para o Mapa -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
+
+    <title>Observatório Eleitoral de Itajaí</title>
+
+    <!-- =========================================================
+         BIBLIOTECAS
+    ========================================================== -->
+
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet.fullscreen@3.0.0/Control.FullScreen.css">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+          rel="stylesheet">
+
     <style>
+
+        /* =====================================================
+           VARIÁVEIS
+        ====================================================== */
+
         :root {
-            --primary-color: #0f172a;    /* Slate 900 - Escuro Profissional */
-            --secondary-color: #2563eb;  /* Blue 600 - Azul Interativo */
-            --accent-color: #38bdf8;     /* Light Blue */
-            --bg-color: #f1f5f9;         /* Slate 100 - Fundo Geral */
-            --card-bg: #ffffff;
-            --text-main: #1e293b;
-            --text-muted: #64748b;
-            --border-color: #e2e8f0;
+
+            --primary: #0f172a;
+            --primary-light: #1e293b;
+
+            --blue: #2563eb;
+            --blue-dark: #1d4ed8;
+            --blue-light: #eff6ff;
+
+            --cyan: #38bdf8;
+
+            --green: #10b981;
+            --orange: #f59e0b;
+
+            --background: #f1f5f9;
+            --card: #ffffff;
+
+            --text: #1e293b;
+            --muted: #64748b;
+            --muted-light: #94a3b8;
+
+            --border: #e2e8f0;
+
+            --shadow-sm:
+                0 1px 2px rgba(15,23,42,.05);
+
+            --shadow:
+                0 4px 12px rgba(15,23,42,.08);
+
+            --shadow-lg:
+                0 10px 30px rgba(15,23,42,.12);
+
+            --radius: 12px;
         }
+
+
+        /* =====================================================
+           RESET
+        ====================================================== */
 
         * {
             box-sizing: border-box;
@@ -26,668 +75,5387 @@
             padding: 0;
         }
 
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+        }
 
         body {
-            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
+
+            font-family:
+                'Inter',
+                'Segoe UI',
+                Arial,
+                sans-serif;
+
+            background: var(--background);
+            color: var(--text);
+
             overflow: hidden;
         }
 
-        /* Cabeçalho Profissional */
+
+        /* =====================================================
+           SCROLLBAR
+        ====================================================== */
+
+        ::-webkit-scrollbar {
+            width: 7px;
+            height: 7px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+
+        /* =====================================================
+           HEADER
+        ====================================================== */
+
         header {
-            background-color: var(--card-bg);
-            border-bottom: 1px solid var(--border-color);
-            padding: 0 30px;
+
+            height: 74px;
+
+            background: rgba(255,255,255,.97);
+
+            border-bottom:
+                1px solid var(--border);
+
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            height: 70px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-            z-index: 1000;
+            justify-content: space-between;
+
+            padding:
+                0 28px;
+
+            position: relative;
+
+            z-index: 2000;
+
+            box-shadow: var(--shadow-sm);
         }
 
-        .logo-area h1 {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--primary-color);
-            letter-spacing: -0.5px;
-        }
 
-        .logo-area .subtitle {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+        .brand {
 
-        /* Menu de Navegação Superior (Tabs estilo SaaS) */
-        nav {
             display: flex;
-            height: 100%;
-            gap: 20px;
+
+            align-items: center;
+
+            gap: 14px;
+
+            min-width: 260px;
         }
+
+
+        .brand-logo {
+
+            width: 42px;
+            height: 42px;
+
+            object-fit: contain;
+
+            border-radius: 9px;
+
+            display: block;
+        }
+
+
+        .brand-logo-fallback {
+
+            width: 42px;
+            height: 42px;
+
+            border-radius: 10px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    var(--blue),
+                    #38bdf8
+                );
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            color: white;
+
+            font-weight: 800;
+
+            font-size: 16px;
+        }
+
+
+        .brand-text h1 {
+
+            font-size: 17px;
+
+            line-height: 1.2;
+
+            font-weight: 800;
+
+            color: var(--primary);
+
+            letter-spacing: -.35px;
+        }
+
+
+        .brand-text span {
+
+            display: block;
+
+            margin-top: 3px;
+
+            font-size: 10px;
+
+            text-transform: uppercase;
+
+            letter-spacing: .7px;
+
+            font-weight: 600;
+
+            color: var(--muted);
+        }
+
+
+        /* =====================================================
+           NAV
+        ====================================================== */
+
+        nav {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 4px;
+
+            height: 100%;
+        }
+
 
         .nav-btn {
-            background: transparent;
-            border: none;
-            color: var(--text-muted);
-            padding: 0 10px;
-            cursor: pointer;
-            font-size: 0.90rem;
-            font-weight: 600;
-            position: relative;
-            transition: color 0.2s ease;
+
             height: 100%;
-            display: flex;
-            align-items: center;
+
+            border: 0;
+
+            background: transparent;
+
+            padding:
+                0 15px;
+
+            color: var(--muted);
+
+            cursor: pointer;
+
+            font-size: 13px;
+
+            font-weight: 700;
+
+            position: relative;
+
+            transition:
+                color .2s ease,
+                background .2s ease;
         }
+
 
         .nav-btn:hover {
-            color: var(--primary-color);
-        }
 
-        .nav-btn.active {
-            color: var(--secondary-color);
-        }
+            color: var(--primary);
 
-        .nav-btn.active::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 3px;
-            background-color: var(--secondary-color);
-            border-top-left-radius: 3px;
-            border-top-right-radius: 3px;
-        }
-
-        /* Área de Conteúdo das Abas */
-        .tab-content {
-            display: none;
-            flex: 1;
-            overflow-y: auto;
-            padding: 25px 30px;
-        }
-
-        .tab-content.active {
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Layout da Aba de Mapas com Sidebar Lateral */
-        .map-layout {
-            display: flex;
-            flex: 1;
-            gap: 20px;
-            height: calc(100vh - 120px);
-        }
-
-        #sidebar-bairros {
-            width: 380px;
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-            overflow: hidden;
-        }
-
-        /* Filtros Sidebar */
-        .sidebar-filters {
-            padding: 15px;
-            border-bottom: 1px solid var(--border-color);
             background: #f8fafc;
         }
 
-        .search-input {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            font-size: 0.85rem;
-            margin-bottom: 10px;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-        .search-input:focus { border-color: var(--secondary-color); }
 
-        .select-input {
-            width: 100%;
-            padding: 8px 10px;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            font-size: 0.85rem;
-            color: var(--text-main);
-            background: white;
-            outline: none;
+        .nav-btn.active {
+
+            color: var(--blue);
         }
 
-        .sidebar-header {
+
+        .nav-btn.active::after {
+
+            content: "";
+
+            position: absolute;
+
+            left: 12px;
+            right: 12px;
+
+            bottom: 0;
+
+            height: 3px;
+
+            background: var(--blue);
+
+            border-radius:
+                4px 4px 0 0;
+        }
+
+
+        /* =====================================================
+           HEADER STATUS
+        ====================================================== */
+
+        .header-status {
+
             display: flex;
-            justify-content: space-between;
+
             align-items: center;
-            padding: 12px 15px;
-            border-bottom: 1px solid var(--border-color);
-            background: var(--card-bg);
-        }
 
-        .sidebar-title {
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: var(--primary-color);
-        }
+            gap: 8px;
 
-        .btn-reset {
-            background: transparent;
-            border: 1px solid var(--border-color);
-            color: var(--text-muted);
-            padding: 4px 8px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.70rem;
+            font-size: 11px;
+
+            color: var(--muted);
+
             font-weight: 600;
-            transition: all 0.2s;
-        }
-        .btn-reset:hover { background: var(--bg-color); color: var(--primary-color); }
-
-        .bairro-item {
-            padding: 12px 15px;
-            border-bottom: 1px solid var(--border-color);
-            cursor: pointer;
-            transition: background 0.2s;
         }
 
-        .bairro-item:hover { background-color: var(--bg-color); }
-        .bairro-item.ativo { background-color: #eff6ff; border-left: 4px solid var(--secondary-color); }
 
-        .bairro-linha {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.85rem;
+        .status-dot {
+
+            width: 8px;
+            height: 8px;
+
+            background: var(--green);
+
+            border-radius: 50%;
+
+            box-shadow:
+                0 0 0 4px #d1fae5;
+        }
+
+
+        /* =====================================================
+           TABS
+        ====================================================== */
+
+        .tab-content {
+
+            display: none;
+
+            height:
+                calc(100vh - 74px);
+
+            overflow-y: auto;
+        }
+
+
+        .tab-content.active {
+
+            display: block;
+        }
+
+
+        /* =====================================================
+           HOME
+        ====================================================== */
+
+        .home-page {
+
+            max-width: 1320px;
+
+            margin:
+                0 auto;
+
+            padding:
+                34px 30px 50px;
+        }
+
+
+        .hero {
+
+            background:
+
+                radial-gradient(
+                    circle at 90% 20%,
+                    rgba(56,189,248,.20),
+                    transparent 35%
+                ),
+
+                linear-gradient(
+                    135deg,
+                    #0f172a,
+                    #172554
+                );
+
+            border-radius: 18px;
+
+            padding:
+                38px 42px;
+
+            color: white;
+
+            position: relative;
+
+            overflow: hidden;
+
+            box-shadow:
+                var(--shadow-lg);
+
+            margin-bottom: 22px;
+        }
+
+
+        .hero::after {
+
+            content: "";
+
+            position: absolute;
+
+            width: 300px;
+            height: 300px;
+
+            border-radius: 50%;
+
+            border:
+                1px solid rgba(255,255,255,.08);
+
+            right: -100px;
+            top: -120px;
+        }
+
+
+        .hero-content {
+
+            position: relative;
+
+            z-index: 2;
+
+            max-width: 800px;
+        }
+
+
+        .hero-eyebrow {
+
+            display: inline-flex;
+
             align-items: center;
+
+            gap: 7px;
+
+            font-size: 11px;
+
+            font-weight: 700;
+
+            text-transform: uppercase;
+
+            letter-spacing: 1px;
+
+            color: #bae6fd;
+
+            margin-bottom: 12px;
         }
 
-        .bairro-nome { color: var(--text-main); font-weight: 700; }
-        .bairro-eleitores { color: var(--secondary-color); font-weight: 700; background: #e0f2fe; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem;}
 
-        .locais-container {
-            margin-top: 10px;
-            padding-left: 8px;
-            border-left: 2px solid #cbd5e1;
+        .hero h2 {
+
+            font-size:
+                clamp(28px, 4vw, 44px);
+
+            line-height: 1.08;
+
+            letter-spacing:
+                -1.4px;
+
+            margin-bottom: 14px;
+        }
+
+
+        .hero p {
+
+            color: #cbd5e1;
+
+            font-size: 14px;
+
+            line-height: 1.7;
+
+            max-width: 700px;
+        }
+
+
+        .hero-actions {
+
+            margin-top: 24px;
+
+            display: flex;
+
+            gap: 10px;
+
+            flex-wrap: wrap;
+        }
+
+
+        .hero-btn {
+
+            border: 0;
+
+            border-radius: 9px;
+
+            padding:
+                11px 16px;
+
+            cursor: pointer;
+
+            font-size: 12px;
+
+            font-weight: 700;
+
+            transition:
+                transform .2s,
+                box-shadow .2s;
+        }
+
+
+        .hero-btn:hover {
+
+            transform: translateY(-1px);
+        }
+
+
+        .hero-btn.primary {
+
+            background: white;
+
+            color: var(--primary);
+        }
+
+
+        .hero-btn.secondary {
+
+            background:
+                rgba(255,255,255,.10);
+
+            color: white;
+
+            border:
+                1px solid rgba(255,255,255,.18);
+        }
+
+
+        /* =====================================================
+           HOME KPIS
+        ====================================================== */
+
+        .home-kpis {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(4, 1fr);
+
+            gap: 14px;
+
+            margin-bottom: 22px;
+        }
+
+
+        .home-kpi {
+
+            background: white;
+
+            border:
+                1px solid var(--border);
+
+            border-radius: var(--radius);
+
+            padding: 20px;
+
+            box-shadow: var(--shadow-sm);
+
+            position: relative;
+
+            overflow: hidden;
+        }
+
+
+        .home-kpi::before {
+
+            content: "";
+
+            position: absolute;
+
+            left: 0;
+            top: 0;
+            bottom: 0;
+
+            width: 4px;
+
+            background: var(--blue);
+        }
+
+
+        .home-kpi:nth-child(2)::before {
+            background: var(--green);
+        }
+
+        .home-kpi:nth-child(3)::before {
+            background: var(--orange);
+        }
+
+        .home-kpi:nth-child(4)::before {
+            background: var(--cyan);
+        }
+
+
+        .kpi-label {
+
+            color: var(--muted);
+
+            font-size: 11px;
+
+            font-weight: 700;
+
+            text-transform: uppercase;
+
+            letter-spacing: .4px;
+        }
+
+
+        .kpi-value {
+
+            color: var(--primary);
+
+            font-size: 27px;
+
+            font-weight: 800;
+
+            margin-top: 7px;
+        }
+
+
+        .kpi-sub {
+
+            margin-top: 4px;
+
+            color: var(--muted-light);
+
+            font-size: 10px;
+
+            font-weight: 600;
+        }
+
+
+        /* =====================================================
+           HOME CARDS
+        ====================================================== */
+
+        .home-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                1.25fr .75fr;
+
+            gap: 20px;
+        }
+
+
+        .info-card {
+
+            background: white;
+
+            border:
+                1px solid var(--border);
+
+            border-radius: var(--radius);
+
+            padding: 24px;
+
+            box-shadow: var(--shadow-sm);
+        }
+
+
+        .info-card h3 {
+
+            font-size: 15px;
+
+            margin-bottom: 8px;
+
+            color: var(--primary);
+        }
+
+
+        .info-card p {
+
+            color: var(--muted);
+
+            font-size: 12px;
+
+            line-height: 1.7;
+        }
+
+
+        .quick-actions {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(2, 1fr);
+
+            gap: 10px;
+
+            margin-top: 18px;
+        }
+
+
+        .quick-action {
+
+            border:
+                1px solid var(--border);
+
+            background: #f8fafc;
+
+            border-radius: 10px;
+
+            padding: 14px;
+
+            cursor: pointer;
+
+            text-align: left;
+
+            transition:
+                border .2s,
+                background .2s,
+                transform .2s;
+        }
+
+
+        .quick-action:hover {
+
+            border-color: #bfdbfe;
+
+            background: var(--blue-light);
+
+            transform: translateY(-1px);
+        }
+
+
+        .quick-icon {
+
+            font-size: 20px;
+
+            margin-bottom: 8px;
+        }
+
+
+        .quick-action strong {
+
+            display: block;
+
+            font-size: 12px;
+
+            color: var(--primary);
+        }
+
+
+        .quick-action span {
+
+            display: block;
+
+            margin-top: 3px;
+
+            font-size: 10px;
+
+            color: var(--muted);
+        }
+
+
+        /* =====================================================
+           MAP PAGE
+        ====================================================== */
+
+        .map-page {
+
+            height:
+                calc(100vh - 74px);
+
+            padding: 16px;
+
+            position: relative;
+        }
+
+
+        .map-layout {
+
+            display: flex;
+
+            gap: 14px;
+
+            height: 100%;
+        }
+
+
+        /* =====================================================
+           SIDEBAR
+        ====================================================== */
+
+        #sidebar-bairros {
+
+            width: 365px;
+
+            min-width: 365px;
+
+            background: white;
+
+            border:
+                1px solid var(--border);
+
+            border-radius: 14px;
+
+            display: flex;
+
+            flex-direction: column;
+
+            overflow: hidden;
+
+            box-shadow: var(--shadow);
+        }
+
+
+        .sidebar-top {
+
+            padding: 16px;
+
+            border-bottom:
+                1px solid var(--border);
+        }
+
+
+        .sidebar-heading {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: flex-start;
+
+            margin-bottom: 14px;
+        }
+
+
+        .sidebar-heading h2 {
+
+            font-size: 15px;
+
+            color: var(--primary);
+
+            font-weight: 800;
+        }
+
+
+        .sidebar-heading span {
+
+            display: block;
+
+            font-size: 10px;
+
+            color: var(--muted);
+
+            margin-top: 3px;
+        }
+
+
+        .sidebar-close {
+
             display: none;
         }
 
-        .bairro-item.ativo .locais-container { display: block; }
 
-        .local-subitem {
-            font-size: 0.80rem;
-            color: var(--text-main);
-            margin-top: 4px;
-            display: flex;
-            justify-content: space-between;
-            padding: 8px;
-            border-radius: 4px;
-            transition: background 0.2s;
-            background: white;
-            border: 1px solid var(--border-color);
+        .search-wrapper {
+
+            position: relative;
+
+            margin-bottom: 9px;
         }
 
-        .local-subitem:hover { background-color: #f8fafc; border-color: var(--secondary-color); color: var(--secondary-color);}
+
+        .search-icon {
+
+            position: absolute;
+
+            left: 11px;
+            top: 50%;
+
+            transform:
+                translateY(-50%);
+
+            color: var(--muted);
+
+            font-size: 13px;
+        }
+
+
+        .search-input {
+
+            width: 100%;
+
+            height: 40px;
+
+            border:
+                1px solid var(--border);
+
+            border-radius: 9px;
+
+            padding:
+                0 12px 0 34px;
+
+            outline: none;
+
+            font-family: inherit;
+
+            font-size: 12px;
+
+            color: var(--text);
+
+            background: #f8fafc;
+
+            transition:
+                border .2s,
+                box-shadow .2s;
+        }
+
+
+        .search-input:focus {
+
+            border-color: #93c5fd;
+
+            box-shadow:
+                0 0 0 3px #dbeafe;
+
+            background: white;
+        }
+
+
+        .select-input {
+
+            width: 100%;
+
+            height: 38px;
+
+            border:
+                1px solid var(--border);
+
+            border-radius: 9px;
+
+            padding: 0 10px;
+
+            font-family: inherit;
+
+            font-size: 11px;
+
+            font-weight: 600;
+
+            color: var(--text);
+
+            background: white;
+
+            outline: none;
+
+            cursor: pointer;
+        }
+
+
+        .sidebar-summary {
+
+            padding:
+                11px 16px;
+
+            background: #f8fafc;
+
+            border-bottom:
+                1px solid var(--border);
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+        }
+
+
+        .sidebar-summary strong {
+
+            font-size: 11px;
+
+            color: var(--primary);
+        }
+
+
+        .sidebar-summary span {
+
+            font-size: 10px;
+
+            color: var(--muted);
+        }
+
+
+        .btn-reset {
+
+            border:
+                1px solid var(--border);
+
+            background: white;
+
+            border-radius: 7px;
+
+            padding:
+                6px 9px;
+
+            font-size: 9px;
+
+            font-weight: 700;
+
+            color: var(--muted);
+
+            cursor: pointer;
+        }
+
+
+        .btn-reset:hover {
+
+            color: var(--blue);
+
+            border-color: #bfdbfe;
+
+            background: var(--blue-light);
+        }
+
+
+        #lista-bairros-conteudo {
+
+            overflow-y: auto;
+
+            flex: 1;
+        }
+
+
+        .bairro-item {
+
+            padding:
+                13px 15px;
+
+            border-bottom:
+                1px solid #f1f5f9;
+
+            cursor: pointer;
+
+            transition:
+                background .15s,
+                border .15s;
+        }
+
+
+        .bairro-item:hover {
+
+            background: #f8fafc;
+        }
+
+
+        .bairro-item.ativo {
+
+            background:
+                linear-gradient(
+                    90deg,
+                    #eff6ff,
+                    #ffffff
+                );
+
+            border-left:
+                4px solid var(--blue);
+
+            padding-left: 11px;
+        }
+
+
+        .bairro-linha {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            gap: 10px;
+        }
+
+
+        .bairro-info {
+
+            min-width: 0;
+        }
+
+
+        .bairro-nome {
+
+            font-size: 12px;
+
+            font-weight: 750;
+
+            color: var(--text);
+
+            white-space: nowrap;
+
+            overflow: hidden;
+
+            text-overflow: ellipsis;
+        }
+
+
+        .bairro-meta {
+
+            margin-top: 3px;
+
+            color: var(--muted);
+
+            font-size: 9px;
+        }
+
+
+        .bairro-eleitores {
+
+            background: var(--blue-light);
+
+            color: var(--blue);
+
+            padding:
+                4px 8px;
+
+            border-radius: 20px;
+
+            font-size: 9px;
+
+            font-weight: 800;
+
+            white-space: nowrap;
+        }
+
+
+        .locais-container {
+
+            display: none;
+
+            margin-top: 9px;
+
+            margin-left: 4px;
+
+            padding-left: 9px;
+
+            border-left:
+                2px solid #dbeafe;
+        }
+
+
+        .bairro-item.ativo .locais-container {
+
+            display: block;
+        }
+
+
+        .local-subitem {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            gap: 8px;
+
+            padding:
+                8px;
+
+            margin-bottom: 4px;
+
+            background: white;
+
+            border:
+                1px solid var(--border);
+
+            border-radius: 7px;
+
+            cursor: pointer;
+
+            transition:
+                border .15s,
+                background .15s;
+        }
+
+
+        .local-subitem:hover {
+
+            border-color: #93c5fd;
+
+            background: var(--blue-light);
+        }
+
+
+        .local-name {
+
+            font-size: 10px;
+
+            font-weight: 600;
+
+            line-height: 1.3;
+
+            color: var(--text);
+
+            flex: 1;
+        }
+
+
+        .local-value {
+
+            font-size: 9px;
+
+            font-weight: 800;
+
+            color: var(--blue);
+
+            white-space: nowrap;
+        }
+
+
+        /* =====================================================
+           MAP
+        ====================================================== */
 
         #map {
+
             flex: 1;
+
+            min-width: 0;
+
             height: 100%;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+
+            border:
+                1px solid var(--border);
+
+            border-radius: 14px;
+
+            overflow: hidden;
+
+            box-shadow: var(--shadow);
+
             z-index: 1;
         }
 
-        /* Estilo da Página Inicial */
-        .home-container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: var(--card-bg);
-            padding: 40px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-            border: 1px solid var(--border-color);
-        }
-        .home-container h2 { color: var(--primary-color); margin-bottom: 15px; font-size: 1.80rem; }
-        .home-container p { line-height: 1.60; color: var(--text-muted); margin-bottom: 20px; }
 
-        /* KPIs */
-        .kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
+        .map-overlay {
+
+            position: absolute;
+
+            z-index: 500;
+
+            pointer-events: none;
+        }
+
+
+        .map-status {
+
+            top: 30px;
+
+            right: 30px;
+
+            background:
+                rgba(255,255,255,.96);
+
+            backdrop-filter:
+                blur(8px);
+
+            border:
+                1px solid var(--border);
+
+            border-radius: 10px;
+
+            padding:
+                10px 13px;
+
+            box-shadow: var(--shadow);
+
+            min-width: 150px;
+        }
+
+
+        .map-status-title {
+
+            color: var(--muted);
+
+            font-size: 9px;
+
+            font-weight: 700;
+
+            text-transform: uppercase;
+
+            letter-spacing: .5px;
+        }
+
+
+        .map-status-value {
+
+            margin-top: 2px;
+
+            font-size: 16px;
+
+            font-weight: 800;
+
+            color: var(--primary);
+        }
+
+
+        .map-status-sub {
+
+            margin-top: 2px;
+
+            font-size: 9px;
+
+            color: var(--muted);
+        }
+
+
+        .map-actions {
+
+            bottom: 28px;
+
+            right: 28px;
+
+            display: flex;
+
+            gap: 7px;
+
+            pointer-events: auto;
+        }
+
+
+        .map-action {
+
+            width: 38px;
+            height: 38px;
+
+            border:
+                1px solid var(--border);
+
+            border-radius: 9px;
+
+            background:
+                rgba(255,255,255,.96);
+
+            box-shadow: var(--shadow);
+
+            cursor: pointer;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            font-size: 15px;
+
+            color: var(--primary);
+
+            transition:
+                background .2s,
+                color .2s,
+                transform .2s;
+        }
+
+
+        .map-action:hover {
+
+            background: var(--blue);
+
+            color: white;
+
+            transform: translateY(-1px);
+        }
+
+
+        .map-legend {
+
+            left: 28px;
+
+            bottom: 28px;
+
+            background:
+                rgba(255,255,255,.96);
+
+            backdrop-filter:
+                blur(8px);
+
+            padding:
+                12px 14px;
+
+            border:
+                1px solid var(--border);
+
+            border-radius: 10px;
+
+            box-shadow: var(--shadow);
+        }
+
+
+        .legend-title {
+
+            font-size: 9px;
+
+            font-weight: 800;
+
+            text-transform: uppercase;
+
+            color: var(--primary);
+
+            margin-bottom: 7px;
+        }
+
+
+        .legend-row {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 7px;
+
+            font-size: 9px;
+
+            color: var(--muted);
+
+            margin-top: 4px;
+        }
+
+
+        .legend-circle {
+
+            border-radius: 50%;
+
+            background: #2563eb;
+
+            border:
+                2px solid white;
+
+            box-shadow:
+                0 1px 3px rgba(0,0,0,.25);
+        }
+
+
+        .legend-circle.small {
+            width: 8px;
+            height: 8px;
+        }
+
+        .legend-circle.medium {
+            width: 13px;
+            height: 13px;
+        }
+
+        .legend-circle.large {
+            width: 19px;
+            height: 19px;
+        }
+
+
+        /* =====================================================
+           POPUP
+        ====================================================== */
+
+        .leaflet-popup-content-wrapper {
+
+            border-radius: 12px !important;
+
+            box-shadow:
+                0 10px 30px rgba(15,23,42,.15) !important;
+        }
+
+
+        .leaflet-popup-content {
+
+            margin: 0 !important;
+
+            min-width: 240px;
+        }
+
+
+        .popup {
+
+            padding: 15px;
+        }
+
+
+        .popup-title {
+
+            font-size: 13px;
+
+            font-weight: 800;
+
+            color: var(--primary);
+
+            line-height: 1.35;
+
+            margin-bottom: 10px;
+        }
+
+
+        .popup-row {
+
+            display: flex;
+
+            gap: 8px;
+
+            padding:
+                6px 0;
+
+            border-bottom:
+                1px solid #f1f5f9;
+
+            font-size: 10px;
+        }
+
+
+        .popup-row:last-child {
+
+            border-bottom: 0;
+        }
+
+
+        .popup-label {
+
+            color: var(--muted);
+
+            min-width: 70px;
+        }
+
+
+        .popup-value {
+
+            color: var(--text);
+
+            font-weight: 700;
+        }
+
+
+        .popup-total {
+
+            margin-top: 10px;
+
+            background: var(--blue-light);
+
+            border-radius: 8px;
+
+            padding: 10px;
+        }
+
+
+        .popup-total small {
+
+            display: block;
+
+            color: var(--blue);
+
+            font-size: 8px;
+
+            font-weight: 700;
+
+            text-transform: uppercase;
+        }
+
+
+        .popup-total strong {
+
+            display: block;
+
+            color: var(--primary);
+
+            font-size: 20px;
+
+            margin-top: 2px;
+        }
+
+
+        /* =====================================================
+           STATS PAGE
+        ====================================================== */
+
+        .stats-page {
+
+            max-width: 1450px;
+
+            margin: 0 auto;
+
+            padding:
+                25px 28px 50px;
+        }
+
+
+        .stats-header {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: flex-end;
+
             margin-bottom: 20px;
         }
-        .kpi-card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-        }
-        .kpi-value { font-size: 1.60rem; font-weight: 800; color: var(--primary-color); }
-        .kpi-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; font-weight: 600;}
 
-        /* Gráficos */
-        .charts-grid {
+
+        .stats-title h2 {
+
+            font-size: 25px;
+
+            letter-spacing: -.7px;
+
+            color: var(--primary);
+        }
+
+
+        .stats-title p {
+
+            margin-top: 5px;
+
+            font-size: 11px;
+
+            color: var(--muted);
+        }
+
+
+        .stats-update {
+
+            font-size: 10px;
+
+            color: var(--muted);
+
+            background: white;
+
+            border:
+                1px solid var(--border);
+
+            padding:
+                8px 11px;
+
+            border-radius: 8px;
+        }
+
+
+        .kpi-grid {
+
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-        .chart-box {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-        }
-        .chart-title {
-            font-size: 0.90rem;
-            font-weight: 700;
-            color: var(--text-main);
-            margin-bottom: 15px;
-            text-transform: uppercase;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 8px;
-        }
-        .chart-container { position: relative; height: 320px; width: 100%; }
 
-        @media (max-width: 900px) {
-            .charts-grid, .kpi-grid, .map-layout { flex-direction: column; grid-template-columns: 1fr; height: auto; }
-            #sidebar-bairros { width: 100%; max-height: 350px; }
-            #map { min-height: 400px; }
-            nav { overflow-x: auto; white-space: nowrap; }
+            grid-template-columns:
+                repeat(4, 1fr);
+
+            gap: 14px;
+
+            margin-bottom: 18px;
         }
+
+
+        .kpi-card {
+
+            background: white;
+
+            border:
+                1px solid var(--border);
+
+            border-radius: var(--radius);
+
+            padding: 19px;
+
+            box-shadow: var(--shadow-sm);
+
+            position: relative;
+
+            overflow: hidden;
+        }
+
+
+        .kpi-card::after {
+
+            content: "";
+
+            position: absolute;
+
+            width: 80px;
+            height: 80px;
+
+            border-radius: 50%;
+
+            right: -35px;
+            top: -35px;
+
+            background:
+                rgba(37,99,235,.06);
+        }
+
+
+        .kpi-card:nth-child(2)::after {
+            background: rgba(16,185,129,.07);
+        }
+
+        .kpi-card:nth-child(3)::after {
+            background: rgba(245,158,11,.08);
+        }
+
+        .kpi-card:nth-child(4)::after {
+            background: rgba(56,189,248,.08);
+        }
+
+
+        .kpi-icon {
+
+            font-size: 18px;
+
+            margin-bottom: 10px;
+        }
+
+
+        .kpi-value-large {
+
+            font-size: 25px;
+
+            font-weight: 800;
+
+            color: var(--primary);
+        }
+
+
+        .kpi-title {
+
+            font-size: 10px;
+
+            color: var(--muted);
+
+            font-weight: 700;
+
+            text-transform: uppercase;
+
+            margin-top: 3px;
+        }
+
+
+        .kpi-percent {
+
+            margin-top: 7px;
+
+            display: inline-block;
+
+            padding:
+                3px 7px;
+
+            background: #f1f5f9;
+
+            color: var(--muted);
+
+            border-radius: 20px;
+
+            font-size: 9px;
+
+            font-weight: 700;
+        }
+
+
+        .charts-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                1fr 1fr;
+
+            gap: 16px;
+        }
+
+
+        .chart-box {
+
+            background: white;
+
+            border:
+                1px solid var(--border);
+
+            border-radius: var(--radius);
+
+            padding: 19px;
+
+            box-shadow: var(--shadow-sm);
+
+            min-width: 0;
+        }
+
+
+        .chart-box.full {
+
+            grid-column:
+                1 / -1;
+        }
+
+
+        .chart-header {
+
+            display: flex;
+
+            align-items: flex-start;
+
+            justify-content: space-between;
+
+            margin-bottom: 13px;
+        }
+
+
+        .chart-title {
+
+            font-size: 13px;
+
+            font-weight: 800;
+
+            color: var(--primary);
+        }
+
+
+        .chart-subtitle {
+
+            font-size: 9px;
+
+            color: var(--muted);
+
+            margin-top: 3px;
+        }
+
+
+        .chart-badge {
+
+            font-size: 9px;
+
+            font-weight: 700;
+
+            color: var(--blue);
+
+            background: var(--blue-light);
+
+            padding:
+                5px 8px;
+
+            border-radius: 20px;
+        }
+
+
+        .chart-container {
+
+            position: relative;
+
+            width: 100%;
+
+            height: 300px;
+        }
+
+
+        .chart-container-large {
+
+            position: relative;
+
+            width: 100%;
+
+            min-height: 450px;
+        }
+
+
+        #chartBairrosDinamico {
+
+            cursor: pointer;
+        }
+
+
+        /* =====================================================
+           INFO / SOURCE
+        ====================================================== */
+
+        .data-source {
+
+            margin-top: 16px;
+
+            background: white;
+
+            border:
+                1px solid var(--border);
+
+            border-radius: 10px;
+
+            padding:
+                12px 15px;
+
+            font-size: 9px;
+
+            color: var(--muted);
+
+            line-height: 1.5;
+        }
+
+
+        .data-source strong {
+
+            color: var(--text);
+        }
+
+
+        /* =====================================================
+           MOBILE
+        ====================================================== */
+
+        @media (max-width: 1100px) {
+
+            .home-kpis,
+            .kpi-grid {
+
+                grid-template-columns:
+                    repeat(2, 1fr);
+            }
+
+            .home-grid {
+
+                grid-template-columns: 1fr;
+            }
+
+            .header-status {
+
+                display: none;
+            }
+
+            .brand {
+
+                min-width: auto;
+            }
+        }
+
+
+        @media (max-width: 850px) {
+
+            header {
+
+                padding:
+                    0 15px;
+
+                height: 64px;
+            }
+
+            .tab-content {
+
+                height:
+                    calc(100vh - 64px);
+            }
+
+            .brand-text h1 {
+
+                font-size: 14px;
+            }
+
+            .brand-text span {
+
+                font-size: 8px;
+            }
+
+            nav {
+
+                gap: 0;
+            }
+
+            .nav-btn {
+
+                padding:
+                    0 8px;
+
+                font-size: 10px;
+            }
+
+            .map-page {
+
+                height:
+                    calc(100vh - 64px);
+
+                padding: 8px;
+            }
+
+            .map-layout {
+
+                flex-direction: column;
+            }
+
+            #sidebar-bairros {
+
+                width: 100%;
+
+                min-width: 0;
+
+                height: 330px;
+            }
+
+            #map {
+
+                min-height: 400px;
+            }
+
+            .charts-grid {
+
+                grid-template-columns: 1fr;
+            }
+
+            .chart-box.full {
+
+                grid-column: auto;
+            }
+
+            .stats-page {
+
+                padding:
+                    18px 14px 40px;
+            }
+
+            .stats-header {
+
+                align-items: flex-start;
+
+                flex-direction: column;
+
+                gap: 10px;
+            }
+        }
+
+
+        @media (max-width: 560px) {
+
+            .home-kpis,
+            .kpi-grid {
+
+                grid-template-columns: 1fr 1fr;
+
+                gap: 8px;
+            }
+
+            .kpi-card {
+
+                padding: 14px;
+            }
+
+            .kpi-value-large {
+
+                font-size: 19px;
+            }
+
+            .home-page {
+
+                padding:
+                    15px 12px 30px;
+            }
+
+            .hero {
+
+                padding:
+                    27px 22px;
+            }
+
+            .hero h2 {
+
+                font-size: 28px;
+            }
+
+            .hero p {
+
+                font-size: 12px;
+            }
+
+            .brand-logo,
+            .brand-logo-fallback {
+
+                width: 34px;
+                height: 34px;
+            }
+
+            .nav-btn {
+
+                padding:
+                    0 5px;
+
+                font-size: 9px;
+            }
+        }
+
     </style>
 </head>
+
+
 <body>
 
-    <header>
-        <div class="logo-area">
-            <h1>Observatório Municipal</h1>
-            <div class="subtitle">Geodados e Eleitorado • Itajaí</div>
-        </div>
-        <nav>
-            <button class="nav-btn active" onclick="mudarAba('inicio', event)">Apresentação</button>
-            <button class="nav-btn" onclick="mudarAba('mapas', event)">Mapa Interativo</button>
-            <button class="nav-btn" onclick="mudarAba('estatisticas', event)">Painel Estatístico</button>
-        </nav>
-    </header>
 
-    <!-- ABA 1: INÍCIO -->
-    <div id="inicio" class="tab-content active">
-        <div class="home-container">
-            <h2>Bem-vindo ao Observatório</h2>
-            <p>Plataforma analítica desenvolvida para centralizar dados espaciais e demográficos do município de Itajaí. Utilize as abas superiores para navegar entre a visão cartográfica e os dashboards de indicadores.</p>
+<!-- =========================================================
+     HEADER
+========================================================== -->
+
+<header>
+
+    <div class="brand">
+
+        <!--
+            ALTERE SOMENTE O NOME ABAIXO SE O ARQUIVO
+            DO LOGO NO GITHUB TIVER OUTRO NOME.
+        -->
+
+        <img
+            id="atlasLogo"
+            class="brand-logo"
+            src="atlas logo.png"
+            alt="Atlas Logo"
+            onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='flex';"
+        >
+
+        <div
+            id="logoFallback"
+            class="brand-logo-fallback"
+            style="display:none;"
+        >
+            AT
         </div>
+
+
+        <div class="brand-text">
+
+            <h1>
+                Observatório Eleitoral de Itajaí
+            </h1>
+
+            <span>
+                Dados • Território • Eleitorado
+            </span>
+
+        </div>
+
     </div>
 
-    <!-- ABA 2: MAPAS E SIDEBAR DINÂMICA -->
-    <div id="mapas" class="tab-content">
+
+    <nav>
+
+        <button
+            class="nav-btn active"
+            onclick="mudarAba('inicio', event)"
+        >
+            Visão geral
+        </button>
+
+
+        <button
+            class="nav-btn"
+            onclick="mudarAba('mapas', event)"
+        >
+            Mapa
+        </button>
+
+
+        <button
+            class="nav-btn"
+            onclick="mudarAba('estatisticas', event)"
+        >
+            Indicadores
+        </button>
+
+    </nav>
+
+
+    <div class="header-status">
+
+        <span class="status-dot"></span>
+
+        Dados disponíveis
+
+    </div>
+
+</header>
+
+
+
+<!-- =========================================================
+     INÍCIO
+========================================================== -->
+
+<div
+    id="inicio"
+    class="tab-content active"
+>
+
+    <main class="home-page">
+
+
+        <section class="hero">
+
+            <div class="hero-content">
+
+                <div class="hero-eyebrow">
+                    ● Plataforma de inteligência territorial
+                </div>
+
+
+                <h2>
+                    Observatório Eleitoral
+                    de Itajaí
+                </h2>
+
+
+                <p>
+
+                    Plataforma para exploração espacial e análise
+                    de indicadores do eleitorado municipal,
+                    integrando dados territoriais, locais de votação
+                    e características demográficas.
+
+                </p>
+
+
+                <div class="hero-actions">
+
+                    <button
+                        class="hero-btn primary"
+                        onclick="mudarAbaPorId('mapas')"
+                    >
+                        Explorar mapa →
+                    </button>
+
+
+                    <button
+                        class="hero-btn secondary"
+                        onclick="mudarAbaPorId('estatisticas')"
+                    >
+                        Ver indicadores
+                    </button>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- KPIS -->
+
+        <section class="home-kpis">
+
+            <div class="home-kpi">
+
+                <div class="kpi-label">
+                    Eleitorado
+                </div>
+
+                <div class="kpi-value">
+                    182.124
+                </div>
+
+                <div class="kpi-sub">
+                    eleitores cadastrados
+                </div>
+
+            </div>
+
+
+            <div class="home-kpi">
+
+                <div class="kpi-label">
+                    Biometria
+                </div>
+
+                <div class="kpi-value">
+                    172.242
+                </div>
+
+                <div class="kpi-sub">
+                    94,6% do eleitorado
+                </div>
+
+            </div>
+
+
+            <div class="home-kpi">
+
+                <div class="kpi-label">
+                    Pessoas com deficiência
+                </div>
+
+                <div class="kpi-value">
+                    1.961
+                </div>
+
+                <div class="kpi-sub">
+                    registros identificados
+                </div>
+
+            </div>
+
+
+            <div class="home-kpi">
+
+                <div class="kpi-label">
+                    Nome social
+                </div>
+
+                <div class="kpi-value">
+                    45
+                </div>
+
+                <div class="kpi-sub">
+                    registros identificados
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <section class="home-grid">
+
+
+            <div class="info-card">
+
+                <h3>
+                    Explore os dados
+                </h3>
+
+                <p>
+
+                    Utilize o mapa para localizar bairros e locais
+                    de votação, aplicar filtros por zona eleitoral
+                    e consultar informações diretamente no território.
+
+                    No painel de indicadores, explore a distribuição
+                    do eleitorado por bairro, gênero, tipo de voto,
+                    escolaridade e faixa etária.
+
+                </p>
+
+
+                <div class="quick-actions">
+
+
+                    <button
+                        class="quick-action"
+                        onclick="mudarAbaPorId('mapas')"
+                    >
+
+                        <div class="quick-icon">
+                            🗺️
+                        </div>
+
+                        <strong>
+                            Mapa interativo
+                        </strong>
+
+                        <span>
+                            Explore bairros e locais de votação
+                        </span>
+
+                    </button>
+
+
+                    <button
+                        class="quick-action"
+                        onclick="mudarAbaPorId('estatisticas')"
+                    >
+
+                        <div class="quick-icon">
+                            📊
+                        </div>
+
+                        <strong>
+                            Painel estatístico
+                        </strong>
+
+                        <span>
+                            Consulte indicadores municipais
+                        </span>
+
+                    </button>
+
+
+                </div>
+
+            </div>
+
+
+            <div class="info-card">
+
+                <h3>
+                    Sobre a plataforma
+                </h3>
+
+                <p>
+
+                    O Observatório organiza informações
+                    geográficas e estatísticas para facilitar
+                    a análise territorial do eleitorado de Itajaí.
+
+                </p>
+
+                <br>
+
+                <p>
+
+                    A navegação foi estruturada para conectar
+                    diferentes formas de análise: mapa,
+                    lista de locais e indicadores estatísticos.
+
+                </p>
+
+            </div>
+
+
+        </section>
+
+    </main>
+
+</div>
+
+
+
+<!-- =========================================================
+     MAPA
+========================================================== -->
+
+<div
+    id="mapas"
+    class="tab-content"
+>
+
+
+    <main class="map-page">
+
+
         <div class="map-layout">
-            <div id="sidebar-bairros">
-                <!-- Filtros Dinâmicos -->
-                <div class="sidebar-filters">
-                    <input type="text" id="buscaLocal" class="search-input" placeholder="🔍 Buscar bairro ou escola..." onkeyup="aplicarFiltros()">
-                    <select id="filtroZona" class="select-input" onchange="aplicarFiltros()">
-                        <option value="TODAS">Todas as Zonas Eleitorais</option>
+
+
+            <!-- SIDEBAR -->
+
+            <aside id="sidebar-bairros">
+
+
+                <div class="sidebar-top">
+
+
+                    <div class="sidebar-heading">
+
+                        <div>
+
+                            <h2>
+                                Explorar território
+                            </h2>
+
+                            <span>
+                                Bairros e locais de votação
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="search-wrapper">
+
+                        <span class="search-icon">
+                            🔎
+                        </span>
+
+                        <input
+                            id="buscaLocal"
+                            class="search-input"
+                            type="text"
+                            placeholder="Buscar bairro ou local..."
+                            oninput="aplicarFiltros()"
+                        >
+
+                    </div>
+
+
+                    <select
+                        id="filtroZona"
+                        class="select-input"
+                        onchange="aplicarFiltros()"
+                    >
+
+                        <option value="TODAS">
+                            Todas as zonas eleitorais
+                        </option>
+
                     </select>
+
                 </div>
-                <div class="sidebar-header">
-                    <span class="sidebar-title" id="contador-resultados">Bairros e Locais</span>
-                    <button class="btn-reset" onclick="resetarMapa()">Remover Zoom</button>
+
+
+
+                <div class="sidebar-summary">
+
+                    <div>
+
+                        <strong id="contador-resultados">
+                            Carregando...
+                        </strong>
+
+                        <span id="contador-bairros">
+                            -
+                        </span>
+
+                    </div>
+
+
+                    <button
+                        class="btn-reset"
+                        onclick="resetarMapa()"
+                    >
+                        ⌂ Extensão total
+                    </button>
+
                 </div>
-                <div id="lista-bairros-conteudo" style="overflow-y: auto; flex: 1;">
-                    <div style="padding:15px; color:#64748b; font-size:0.85rem;">Carregando geodados...</div>
+
+
+
+                <div
+                    id="lista-bairros-conteudo"
+                >
+
+                    <div
+                        style="
+                            padding:20px;
+                            text-align:center;
+                            color:#64748b;
+                            font-size:11px;
+                        "
+                    >
+                        Carregando geodados...
+                    </div>
+
                 </div>
-            </div>
+
+
+            </aside>
+
+
+
+            <!-- MAPA -->
+
             <div id="map"></div>
-        </div>
-    </div>
 
-    <!-- ABA 3: PAINEL ESTATÍSTICO -->
-    <div id="estatisticas" class="tab-content">
-        <div class="kpi-grid">
-            <div class="kpi-card"><div class="kpi-value">182.124</div><div class="kpi-label">Total de Eleitores</div></div>
-            <div class="kpi-card"><div class="kpi-value">172.242</div><div class="kpi-label">Com Biometria</div></div>
-            <div class="kpi-card"><div class="kpi-value">1.961</div><div class="kpi-label">Com Deficiência</div></div>
-            <div class="kpi-card"><div class="kpi-value">45</div><div class="kpi-label">Nome Social</div></div>
+
         </div>
 
-        <div class="charts-grid">
-            <div class="chart-box" style="grid-column: span 2;">
-                <div class="chart-title">Eleitorado por Bairro (Top 10)</div>
-                <div class="chart-container"><canvas id="chartBairrosDinamico"></canvas></div>
+
+
+        <!-- STATUS -->
+
+        <div class="map-overlay map-status">
+
+            <div class="map-status-title">
+                Eleitorado filtrado
             </div>
+
+            <div
+                id="mapStatusValue"
+                class="map-status-value"
+            >
+                0
+            </div>
+
+            <div
+                id="mapStatusSub"
+                class="map-status-sub"
+            >
+                locais exibidos
+            </div>
+
+        </div>
+
+
+
+        <!-- LEGENDA -->
+
+        <div class="map-overlay map-legend">
+
+            <div class="legend-title">
+                Eleitores por local
+            </div>
+
+
+            <div class="legend-row">
+
+                <span class="legend-circle small"></span>
+
+                Pequeno
+
+            </div>
+
+
+            <div class="legend-row">
+
+                <span class="legend-circle medium"></span>
+
+                Médio
+
+            </div>
+
+
+            <div class="legend-row">
+
+                <span class="legend-circle large"></span>
+
+                Grande
+
+            </div>
+
+        </div>
+
+
+
+        <!-- AÇÕES -->
+
+        <div class="map-overlay map-actions">
+
+
+            <button
+                class="map-action"
+                title="Minha localização"
+                onclick="localizarUsuario()"
+            >
+                📍
+            </button>
+
+
+            <button
+                class="map-action"
+                title="Extensão total"
+                onclick="resetarMapa()"
+            >
+                ⌂
+            </button>
+
+
+            <button
+                class="map-action"
+                title="Tela cheia"
+                onclick="alternarTelaCheia()"
+            >
+                ⛶
+            </button>
+
+
+        </div>
+
+
+    </main>
+
+</div>
+
+
+
+<!-- =========================================================
+     ESTATÍSTICAS
+========================================================== -->
+
+<div
+    id="estatisticas"
+    class="tab-content"
+>
+
+
+    <main class="stats-page">
+
+
+        <div class="stats-header">
+
+
+            <div class="stats-title">
+
+                <h2>
+                    Indicadores do eleitorado
+                </h2>
+
+                <p>
+                    Perfil territorial e demográfico do município
+                </p>
+
+            </div>
+
+
+            <div class="stats-update">
+
+                ● Base carregada
+
+            </div>
+
+        </div>
+
+
+
+        <!-- KPIS -->
+
+        <section class="kpi-grid">
+
+
+            <div class="kpi-card">
+
+                <div class="kpi-icon">
+                    👥
+                </div>
+
+                <div class="kpi-value-large">
+                    182.124
+                </div>
+
+                <div class="kpi-title">
+                    Total de eleitores
+                </div>
+
+                <span class="kpi-percent">
+                    100% do eleitorado
+                </span>
+
+            </div>
+
+
+            <div class="kpi-card">
+
+                <div class="kpi-icon">
+                    ✓
+                </div>
+
+                <div class="kpi-value-large">
+                    172.242
+                </div>
+
+                <div class="kpi-title">
+                    Com biometria
+                </div>
+
+                <span class="kpi-percent">
+                    94,6%
+                </span>
+
+            </div>
+
+
+            <div class="kpi-card">
+
+                <div class="kpi-icon">
+                    ♿
+                </div>
+
+                <div class="kpi-value-large">
+                    1.961
+                </div>
+
+                <div class="kpi-title">
+                    Com deficiência
+                </div>
+
+                <span class="kpi-percent">
+                    1,1%
+                </span>
+
+            </div>
+
+
+            <div class="kpi-card">
+
+                <div class="kpi-icon">
+                    ◉
+                </div>
+
+                <div class="kpi-value-large">
+                    45
+                </div>
+
+                <div class="kpi-title">
+                    Nome social
+                </div>
+
+                <span class="kpi-percent">
+                    0,02%
+                </span>
+
+            </div>
+
+
+        </section>
+
+
+
+        <!-- GRÁFICOS -->
+
+        <section class="charts-grid">
+
+
+            <!-- TODOS OS BAIRROS -->
+
+            <div class="chart-box full">
+
+
+                <div class="chart-header">
+
+                    <div>
+
+                        <div class="chart-title">
+                            Eleitorado por bairro
+                        </div>
+
+                        <div class="chart-subtitle">
+                            Todos os bairros, ordenados pelo número de eleitores
+                        </div>
+
+                    </div>
+
+
+                    <span class="chart-badge">
+                        Clique em uma barra para localizar
+                    </span>
+
+                </div>
+
+
+                <div
+                    id="bairroChartContainer"
+                    class="chart-container-large"
+                >
+
+                    <canvas
+                        id="chartBairrosDinamico"
+                    ></canvas>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- GÊNERO -->
+
             <div class="chart-box">
-                <div class="chart-title">Eleitorado por Gênero</div>
-                <div class="chart-container"><canvas id="chartGenero"></canvas></div>
+
+                <div class="chart-header">
+
+                    <div>
+
+                        <div class="chart-title">
+                            Eleitorado por gênero
+                        </div>
+
+                        <div class="chart-subtitle">
+                            Distribuição dos eleitores
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="chart-container">
+
+                    <canvas
+                        id="chartGenero"
+                    ></canvas>
+
+                </div>
+
             </div>
+
+
+
+            <!-- TIPO DE VOTO -->
+
             <div class="chart-box">
-                <div class="chart-title">Tipo de Voto</div>
-                <div class="chart-container"><canvas id="chartTipoVoto"></canvas></div>
+
+                <div class="chart-header">
+
+                    <div>
+
+                        <div class="chart-title">
+                            Tipo de voto
+                        </div>
+
+                        <div class="chart-subtitle">
+                            Obrigatório e facultativo
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="chart-container">
+
+                    <canvas
+                        id="chartTipoVoto"
+                    ></canvas>
+
+                </div>
+
             </div>
-            <div class="chart-box" style="grid-column: span 2;">
-                <div class="chart-title">Eleitorado por Grau de Instrução</div>
-                <div class="chart-container"><canvas id="chartInstrucao"></canvas></div>
+
+
+
+            <!-- INSTRUÇÃO -->
+
+            <div class="chart-box full">
+
+                <div class="chart-header">
+
+                    <div>
+
+                        <div class="chart-title">
+                            Eleitorado por grau de instrução
+                        </div>
+
+                        <div class="chart-subtitle">
+                            Distribuição segundo escolaridade
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="chart-container">
+
+                    <canvas
+                        id="chartInstrucao"
+                    ></canvas>
+
+                </div>
+
             </div>
-            <div class="chart-box" style="grid-column: span 2;">
-                <div class="chart-title">Eleitorado por Faixa Etária</div>
-                <div class="chart-container"><canvas id="chartFaixaEtaria"></canvas></div>
+
+
+
+            <!-- FAIXA ETÁRIA -->
+
+            <div class="chart-box full">
+
+                <div class="chart-header">
+
+                    <div>
+
+                        <div class="chart-title">
+                            Eleitorado por faixa etária
+                        </div>
+
+                        <div class="chart-subtitle">
+                            Distribuição dos eleitores por idade
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="chart-container">
+
+                    <canvas
+                        id="chartFaixaEtaria"
+                    ></canvas>
+
+                </div>
+
             </div>
+
+
+        </section>
+
+
+
+        <div class="data-source">
+
+            <strong>Fonte dos dados:</strong>
+            base eleitoral disponibilizada para a plataforma.
+            Os indicadores apresentados dependem dos atributos
+            disponíveis na base utilizada.
+
         </div>
-    </div>
 
-    <!-- Scripts -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
 
-    <script>
-        Chart.register(ChartDataLabels);
+    </main>
 
-        // Controle de Abas
-        function mudarAba(idAba, evento) {
-            document.querySelectorAll('.tab-content').forEach( aba => aba.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach( btn => btn.classList.remove('active'));
-            document.getElementById(idAba).classList.add('active');
-            evento.currentTarget.classList.add('active');
-            if (idAba === 'mapas') {
-                setTimeout(() => { 
-                    map.invalidateSize(); 
-                    if (!document.querySelector('.bairro-item.ativo')) resetarMapa();
-                }, 100);
-            }
-        }
+</div>
 
-        // Mapa Leaflet
-        const map = L.map('map', { zoomControl: false }).setView([-26.91, -48.66], 13);
-        L.control.zoom({ position: 'topright' }).addTo(map);
-        
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            maxZoom: 19, attribution: '© OpenStreetMap | © CARTO'
-        }).addTo(map);
 
-        function obterValorGeo(props, chaves) {
-            for (let chave of chaves) {
-                for (let p in props) {
-                    if (p.toLowerCase() === chave.toLowerCase()) return props[p];
+
+<!-- =========================================================
+     BIBLIOTECAS JAVASCRIPT
+========================================================== -->
+
+<script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+</script>
+
+
+<script
+    src="https://unpkg.com/leaflet.fullscreen@3.0.0/Control.FullScreen.js">
+</script>
+
+
+<script
+    src="https://cdn.jsdelivr.net/npm/chart.js">
+</script>
+
+
+<script
+    src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2">
+</script>
+
+
+<script
+    src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js">
+</script>
+
+
+
+<script>
+
+    /* =========================================================
+       CONFIGURAÇÃO
+    ========================================================== */
+
+    const LOGO_URL = "atlas logo.png";
+
+    const BAIRROS_URL =
+        "bairros_itajai.geojson";
+
+    const LOCAIS_URL =
+        "locais_de_votacao_e_secoes.geojson";
+
+
+    /* =========================================================
+       VARIÁVEIS GLOBAIS
+    ========================================================== */
+
+    let map;
+
+    let camadaBairrosGlobal = null;
+
+    let camadasLocaisGrupo =
+        L.layerGroup();
+
+    let dadosLocaisOriginais = [];
+
+    let geojsonLocaisOriginal = null;
+
+    let geojsonBairrosOriginal = null;
+
+    let graficoBairros = null;
+
+
+
+    /* =========================================================
+       UTILITÁRIOS
+    ========================================================== */
+
+    function formatarNumero(valor) {
+
+        return Number(valor || 0)
+            .toLocaleString("pt-BR");
+    }
+
+
+    function escaparHTML(texto) {
+
+        return String(texto ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+
+    function obterValorGeo(props, chaves) {
+
+        if (!props) return null;
+
+        for (const chave of chaves) {
+
+            for (const p in props) {
+
+                if (
+                    p.toLowerCase() ===
+                    chave.toLowerCase()
+                ) {
+
+                    return props[p];
                 }
             }
-            return null;
         }
 
-        // Variáveis Globais de Dados
-        let camadaBairrosGlobal = null;
-        let camadasLocaisGrupo = L.layerGroup().addTo(map);
-        let dadosLocaisOriginais = []; 
-        let geojsonLocaisOriginal = null;
-        let geojsonBairrosOriginal = null;
+        return null;
+    }
 
-        function resetarMapa() {
-            map.setView([-26.91, -48.66], 13);
-            document.querySelectorAll('.bairro-item').forEach(el => el.classList.remove('ativo'));
-            if (camadaBairrosGlobal) {
-                camadaBairrosGlobal.eachLayer(layer => {
-                    layer.setStyle({ color: '#000000', weight: 1, fillColor: 'transparent', fillOpacity: 0 });
+
+
+    /* =========================================================
+       CONTROLE DAS ABAS
+    ========================================================== */
+
+    function mudarAba(idAba, evento) {
+
+        document
+            .querySelectorAll(".tab-content")
+            .forEach(aba => {
+                aba.classList.remove("active");
+            });
+
+
+        document
+            .querySelectorAll(".nav-btn")
+            .forEach(btn => {
+                btn.classList.remove("active");
+            });
+
+
+        document
+            .getElementById(idAba)
+            .classList.add("active");
+
+
+        if (evento && evento.currentTarget) {
+
+            evento.currentTarget
+                .classList
+                .add("active");
+        }
+
+
+        if (idAba === "mapas") {
+
+            setTimeout(() => {
+
+                map.invalidateSize();
+
+            }, 150);
+        }
+    }
+
+
+    function mudarAbaPorId(idAba) {
+
+        const botao =
+            [...document.querySelectorAll(".nav-btn")]
+            .find(btn =>
+                btn.getAttribute("onclick") &&
+                btn.getAttribute("onclick")
+                    .includes(`'${idAba}'`)
+            );
+
+
+        document
+            .querySelectorAll(".tab-content")
+            .forEach(aba => {
+                aba.classList.remove("active");
+            });
+
+
+        document
+            .querySelectorAll(".nav-btn")
+            .forEach(btn => {
+                btn.classList.remove("active");
+            });
+
+
+        document
+            .getElementById(idAba)
+            .classList.add("active");
+
+
+        if (botao) {
+
+            botao.classList.add("active");
+        }
+
+
+        if (idAba === "mapas") {
+
+            setTimeout(() => {
+
+                map.invalidateSize();
+
+            }, 150);
+        }
+    }
+
+
+
+    /* =========================================================
+       INICIALIZA MAPA
+    ========================================================== */
+
+    map = L.map("map", {
+
+        zoomControl: false,
+
+        fullscreenControl: false
+
+    }).setView(
+        [-26.91, -48.66],
+        13
+    );
+
+
+    L.control.zoom({
+
+        position: "topright"
+
+    }).addTo(map);
+
+
+    L.tileLayer(
+
+        "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+
+        {
+
+            maxZoom: 19,
+
+            attribution:
+                "© OpenStreetMap | © CARTO"
+
+        }
+
+    ).addTo(map);
+
+
+    camadasLocaisGrupo
+        .addTo(map);
+
+
+
+    /* =========================================================
+       FUNÇÃO PARA RESETAR MAPA
+    ========================================================== */
+
+    function resetarMapa() {
+
+        document
+            .querySelectorAll(".bairro-item")
+            .forEach(el => {
+                el.classList.remove("ativo");
+            });
+
+
+        if (camadaBairrosGlobal) {
+
+            camadaBairrosGlobal
+                .eachLayer(layer => {
+
+                    layer.setStyle({
+
+                        color: "#94a3b8",
+
+                        weight: 1,
+
+                        fillColor: "#3b82f6",
+
+                        fillOpacity: 0.02
+
+                    });
+
                 });
-            }
         }
 
-        // Carrega Dados
-        Promise.all([
-            fetch('bairros_itajai.geojson').then(res => res.json()).catch(() => null),
-            fetch('locais_de_votacao_e_secoes.geojson').then(res => res.json()).catch(() => null)
-        ]).then(([bairrosGeo, locaisGeo]) => {
-            geojsonBairrosOriginal = bairrosGeo;
-            geojsonLocaisOriginal = locaisGeo;
 
-            // Extrair Zonas Eleitorais Únicas para o Filtro
-            let zonasUnicas = new Set();
+        if (
+            geojsonBairrosOriginal &&
+            geojsonBairrosOriginal.features.length
+        ) {
 
-            if (locaisGeo) {
-                locaisGeo.features.forEach(loc => {
-                    const ploc = loc.properties || {};
-                    const zona = obterValorGeo(ploc, ['ZONA_ELE_1', 'zona_ele_1', 'zona']);
-                    if (zona) zonasUnicas.add(zona);
+            const bounds =
+                L.geoJSON(
+                    geojsonBairrosOriginal
+                ).getBounds();
 
-                    let bairroLoc = obterValorGeo(ploc, ['BAIRRO_1', 'bairro_1', 'bairro']) || "Outros";
-                    if (bairrosGeo && loc.geometry) {
+
+            map.fitBounds(
+                bounds,
+                {
+                    padding: [20, 20]
+                }
+            );
+
+        } else {
+
+            map.setView(
+                [-26.91, -48.66],
+                13
+            );
+        }
+    }
+
+
+
+    /* =========================================================
+       CARREGAMENTO DOS GEOJSON
+    ========================================================== */
+
+    Promise.all([
+
+        fetch(BAIRROS_URL)
+            .then(res => {
+
+                if (!res.ok)
+                    throw new Error(
+                        "Erro ao carregar bairros"
+                    );
+
+                return res.json();
+
+            })
+            .catch(() => null),
+
+
+        fetch(LOCAIS_URL)
+            .then(res => {
+
+                if (!res.ok)
+                    throw new Error(
+                        "Erro ao carregar locais"
+                    );
+
+                return res.json();
+
+            })
+            .catch(() => null)
+
+    ])
+
+
+    .then(([bairrosGeo, locaisGeo]) => {
+
+        geojsonBairrosOriginal =
+            bairrosGeo;
+
+        geojsonLocaisOriginal =
+            locaisGeo;
+
+
+        let zonasUnicas =
+            new Set();
+
+
+        /* =====================================================
+           PROCESSA LOCAIS
+        ====================================================== */
+
+        if (locaisGeo) {
+
+            locaisGeo.features
+                .forEach(loc => {
+
+                    const props =
+                        loc.properties || {};
+
+
+                    const zona =
+                        obterValorGeo(
+                            props,
+                            [
+                                "ZONA_ELE_1",
+                                "zona_ele_1",
+                                "zona"
+                            ]
+                        );
+
+
+                    if (zona) {
+
+                        zonasUnicas.add(zona);
+                    }
+
+
+                    let bairroLoc =
+                        obterValorGeo(
+                            props,
+                            [
+                                "BAIRRO_1",
+                                "bairro_1",
+                                "bairro"
+                            ]
+                        ) ||
+                        "Outros";
+
+
+                    /*
+                       Determina bairro através
+                       do ponto dentro do polígono.
+                    */
+
+                    if (
+                        bairrosGeo &&
+                        loc.geometry
+                    ) {
+
                         try {
-                            const pt = turf.point(loc.geometry.coordinates);
-                            for (let b of bairrosGeo.features) {
-                                if (turf.booleanPointInPolygon(pt, b)) {
-                                    bairroLoc = obterValorGeo(b.properties||{}, ['nome', 'bairro', 'NOME', 'BAIRRO']) || bairroLoc;
+
+                            const pt =
+                                turf.point(
+                                    loc.geometry.coordinates
+                                );
+
+
+                            for (
+                                const b
+                                of bairrosGeo.features
+                            ) {
+
+                                if (
+                                    turf.booleanPointInPolygon(
+                                        pt,
+                                        b
+                                    )
+                                ) {
+
+                                    bairroLoc =
+                                        obterValorGeo(
+                                            b.properties || {},
+                                            [
+                                                "nome",
+                                                "bairro",
+                                                "NOME",
+                                                "BAIRRO",
+                                                "nome_bairro"
+                                            ]
+                                        ) ||
+                                        bairroLoc;
+
                                     break;
                                 }
                             }
-                        } catch(e) {}
+
+                        } catch (e) {
+
+                            console.warn(
+                                "Erro ao identificar bairro",
+                                e
+                            );
+                        }
                     }
 
-                    dadosLocaisOriginais.push({
-                        feature: loc,
-                        nome: obterValorGeo(ploc, ['LOCAL_DE_1', 'local_de_1']) || "Local Desconhecido",
-                        endereco: obterValorGeo(ploc, ['ENDERECO_1', 'endereco_1']) || "",
-                        bairroCalculado: bairroLoc,
-                        zona: zona || "N/A",
-                        eleitores: Number(obterValorGeo(ploc, ['TOTAL_EL_1', 'total_el_1'])) || 0,
-                        latlng: [loc.geometry.coordinates[1], loc.geometry.coordinates[0]]
-                    });
+
+                    const eleitores =
+                        Number(
+                            obterValorGeo(
+                                props,
+                                [
+                                    "TOTAL_EL_1",
+                                    "total_el_1"
+                                ]
+                            )
+                        ) || 0;
+
+
+                    dadosLocaisOriginais
+                        .push({
+
+                            feature: loc,
+
+                            nome:
+                                obterValorGeo(
+                                    props,
+                                    [
+                                        "LOCAL_DE_1",
+                                        "local_de_1"
+                                    ]
+                                ) ||
+                                "Local desconhecido",
+
+                            endereco:
+                                obterValorGeo(
+                                    props,
+                                    [
+                                        "ENDERECO_1",
+                                        "endereco_1"
+                                    ]
+                                ) ||
+                                "",
+
+                            bairroCalculado:
+                                bairroLoc,
+
+                            zona:
+                                zona ||
+                                "N/A",
+
+                            eleitores:
+
+                                eleitores,
+
+                            latlng: [
+
+                                loc.geometry.coordinates[1],
+
+                                loc.geometry.coordinates[0]
+
+                            ]
+
+                        });
                 });
-            }
-
-            // Preenche o Select de Zonas
-            const selectZona = document.getElementById('filtroZona');
-            Array.from(zonasUnicas).sort().forEach(z => {
-                const opt = document.createElement('option');
-                opt.value = z; opt.textContent = `Zona Eleitoral ${z}`;
-                selectZona.appendChild(opt);
-            });
-
-            // Plota Contornos dos Bairros
-            if (bairrosGeo) {
-                camadaBairrosGlobal = L.geoJSON(bairrosGeo, {
-                    style: { color: '#000000', weight: 1, fillColor: 'transparent', fillOpacity: 0 },
-                    interactive: false // Remove o clique no bairro (sem pop-up no mapa)
-                }).addTo(map);
-            }
-
-            // Inicia a renderização principal
-            aplicarFiltros();
-            gerarGraficoBairros();
-        });
-
-        // FUNÇÃO DINÂMICA DE FILTRAGEM
-        window.aplicarFiltros = function() {
-            const textoBusca = document.getElementById('buscaLocal').value.toLowerCase();
-            const zonaSelecionada = document.getElementById('filtroZona').value;
-
-            // Limpa o mapa
-            camadasLocaisGrupo.clearLayers();
-
-            let eleitoresPorBairroTemp = {};
-            let locaisPorBairroTemp = {};
-            let totalExibidos = 0;
-
-            dadosLocaisOriginais.forEach(item => {
-                // Lógica do Filtro
-                const matchTexto = item.nome.toLowerCase().includes(textoBusca) || item.bairroCalculado.toLowerCase().includes(textoBusca);
-                const matchZona = (zonaSelecionada === "TODAS" || String(item.zona) === zonaSelecionada);
-
-                if (matchTexto && matchZona) {
-                    totalExibidos++;
-
-                    // Agrupamento para a Sidebar
-                    if (!eleitoresPorBairroTemp[item.bairroCalculado]) {
-                        eleitoresPorBairroTemp[item.bairroCalculado] = 0;
-                        locaisPorBairroTemp[item.bairroCalculado] = [];
-                    }
-                    eleitoresPorBairroTemp[item.bairroCalculado] += item.eleitores;
-                    locaisPorBairroTemp[item.bairroCalculado].push(item);
-
-                    // Plotagem no Mapa
-                    const marker = L.circleMarker(item.latlng, {
-                        radius: Math.max(5, Math.min(22, item.eleitores / 250)),
-                        fillColor: "#2563eb", color: "#ffffff", weight: 2, fillOpacity: 0.9
-                    });
-
-                    marker.bindPopup(`
-                        <div style="font-family: 'Inter', sans-serif; font-size: 0.9rem; line-height: 1.4;">
-                            <b style="color: var(--primary-color);">${item.nome}</b><br>
-                            📍 ${item.endereco}<br>
-                            🏛️ Zona: ${item.zona}<br>
-                            👥 Eleitores: <b>${item.eleitores.toLocaleString('pt-BR')}</b>
-                        </div>
-                    `);
-                    
-                    marker.nomeRef = item.nome;
-                    camadasLocaisGrupo.addLayer(marker);
-                }
-            });
-
-            // Atualiza Header da Sidebar
-            document.getElementById('contador-resultados').textContent = `${totalExibidos} Locais Listados`;
-
-            // Renderiza HTML da Sidebar
-            const containerSidebar = document.getElementById('lista-bairros-conteudo');
-            let htmlBairros = "";
-            const bairrosOrdenados = Object.entries(eleitoresPorBairroTemp).sort((a, b) => b[1] - a[1]);
-
-            bairrosOrdenados.forEach(([bairro, total]) => {
-                const locaisDoBairro = locaisPorBairroTemp[bairro];
-                locaisDoBairro.sort((a, b) => b.eleitores - a.eleitores); // Ordena escolas
-
-                let htmlLocaisSub = "";
-                locaisDoBairro.forEach(l => {
-                    htmlLocaisSub += `
-                        <div class="local-subitem" onclick="event.stopPropagation(); focarLocal('${l.nome}')">
-                            <span style="flex:1; padding-right:10px; font-weight:500;">${l.nome}</span> 
-                            <span><b>${l.eleitores.toLocaleString('pt-BR')}</b></span>
-                        </div>
-                    `;
-                });
-
-                htmlBairros += `
-                    <div class="bairro-item" onclick="focarBairro('${bairro}', this)">
-                        <div class="bairro-linha">
-                            <span class="bairro-nome">${bairro}</span>
-                            <span class="bairro-eleitores">${total.toLocaleString('pt-BR')}</span>
-                        </div>
-                        <div class="locais-container">
-                            ${htmlLocaisSub}
-                        </div>
-                    </div>
-                `;
-            });
-
-            containerSidebar.innerHTML = htmlBairros || "<div style='padding:15px;text-align:center;'>Nenhum local encontrado.</div>";
-        };
-
-        // Focar Bairro e Local
-        window.focarBairro = function(nomeBairro, elementoHtml) {
-            document.querySelectorAll('.bairro-item').forEach(el => el.classList.remove('ativo'));
-            elementoHtml.classList.add('ativo');
-
-            if (!camadaBairrosGlobal) return;
-            camadaBairrosGlobal.eachLayer(layer => {
-                layer.setStyle({ color: '#000000', weight: 1, fillColor: 'transparent', fillOpacity: 0 });
-                const nome = obterValorGeo(layer.feature.properties||{}, ['nome', 'bairro', 'NOME', 'BAIRRO', 'nome_bairro']);
-                if (nome && nome.toLowerCase() === nomeBairro.toLowerCase()) {
-                    layer.setStyle({ color: '#2563eb', weight: 2, fillColor: '#38bdf8', fillOpacity: 0.15 });
-                    map.fitBounds(layer.getBounds(), { padding: [40, 40], maxZoom: 15 });
-                }
-            });
-        };
-
-        window.focarLocal = function(nomeDoLocalProcurado) {
-            camadasLocaisGrupo.eachLayer(layer => {
-                if (layer.nomeRef === nomeDoLocalProcurado) {
-                    map.setView(layer.getLatLng(), 17);
-                    layer.openPopup();
-                }
-            });
-        };
-
-        // GRÁFICOS (Chart.js)
-        const cfgGlobal = {
-            responsive: true, maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                datalabels: {
-                    color: '#1e293b', anchor: 'end', align: 'end', font: { weight: 'bold', size: 10 },
-                    formatter: (val) => val.toLocaleString('pt-BR')
-                }
-            },
-            scales: { x: { grid: { display: false } }, y: { grid: { borderDash: [4, 4] } } }
-        };
-
-        const cfgHorizontal = JSON.parse(JSON.stringify(cfgGlobal));
-        cfgHorizontal.indexAxis = 'y';
-        cfgHorizontal.scales = { x: { grid: { display: false }, ticks:{display:false} }, y: { grid: { display: false } } };
-        cfgHorizontal.plugins.datalabels.align = 'right';
-
-        // Gráfico Dinâmico de Bairros (Calculado do GeoJSON)
-        function gerarGraficoBairros() {
-            let agregacao = {};
-            dadosLocaisOriginais.forEach(l => {
-                agregacao[l.bairroCalculado] = (agregacao[l.bairroCalculado] || 0) + l.eleitores;
-            });
-            const top10 = Object.entries(agregacao).sort((a,b)=>b[1]-a[1]).slice(0, 10);
-            
-            new Chart(document.getElementById('chartBairrosDinamico'), {
-                type: 'bar',
-                data: {
-                    labels: top10.map(t => t[0]),
-                    datasets: [{ data: top10.map(t => t[1]), backgroundColor: '#2563eb', borderRadius: 4 }]
-                },
-                options: cfgHorizontal
-            });
         }
 
-        // Gráficos Estáticos Demográficos
-        new Chart(document.getElementById('chartGenero'), {
-            type: 'bar', data: { labels: ['Feminino', 'Masculino'], datasets: [{ data: [96639, 85485], backgroundColor: ['#38bdf8', '#1e3a8a'], borderRadius: 4 }] }, options: cfgGlobal
-        });
 
-        new Chart(document.getElementById('chartTipoVoto'), {
-            type: 'bar', data: { labels: ['Obrigatório', 'Facultativo'], datasets: [{ data: [167134, 14990], backgroundColor: '#2563eb', borderRadius: 4 }] }, options: cfgGlobal
-        });
 
-        new Chart(document.getElementById('chartEstadoCivil'), {
-            type: 'bar', data: { labels: ['Solteiro', 'Casado', 'Divorciado', 'Viúvo', 'Separado'], datasets: [{ data: [97924, 66310, 11156, 4578, 2156], backgroundColor: '#1e3a8a', borderRadius: 4 }] }, options: cfgGlobal
-        });
+        /* =====================================================
+           PREENCHE ZONAS
+        ====================================================== */
 
-        new Chart(document.getElementById('chartInstrucao'), {
-            type: 'bar', data: { labels: ['Ens. Médio Comp.', 'Superior Comp.', 'Ens. Médio Incomp.', 'Ens. Fund. Incomp.', 'Superior Incomp.', 'Ens. Fund. Comp.', 'Lê e Escreve', 'Analfabeto'], datasets: [{ data: [57135, 33157, 26285, 25565, 21082, 14651, 2915, 1334], backgroundColor: '#38bdf8', borderRadius: 4 }] }, options: cfgHorizontal
-        });
+        const selectZona =
+            document.getElementById(
+                "filtroZona"
+            );
 
-        new Chart(document.getElementById('chartFaixaEtaria'), {
-            type: 'bar', data: { labels: ['16-20', '21-29', '30-39', '40-49', '50-59', '60-69', '70-79', '80+'], datasets: [{ data: [8722, 30778, 40169, 40011, 28136, 21443, 10716, 2103], backgroundColor: '#2563eb', borderRadius: 4 }] }, options: cfgGlobal
-        });
 
-    </script>
+        Array
+            .from(zonasUnicas)
+            .sort()
+            .forEach(z => {
+
+                const option =
+                    document.createElement(
+                        "option"
+                    );
+
+                option.value = z;
+
+                option.textContent =
+                    `Zona eleitoral ${z}`;
+
+                selectZona
+                    .appendChild(option);
+            });
+
+
+
+        /* =====================================================
+           CAMADA DOS BAIRROS
+        ====================================================== */
+
+        if (bairrosGeo) {
+
+            camadaBairrosGlobal =
+                L.geoJSON(
+                    bairrosGeo,
+                    {
+
+                        style: {
+
+                            color: "#94a3b8",
+
+                            weight: 1,
+
+                            fillColor: "#3b82f6",
+
+                            fillOpacity: 0.02
+
+                        },
+
+                        interactive: false
+
+                    }
+                )
+                .addTo(map);
+        }
+
+
+
+        /* =====================================================
+           RENDERIZA
+        ====================================================== */
+
+        aplicarFiltros();
+
+        gerarGraficoBairros();
+
+        inicializarGraficosDemograficos();
+
+
+        setTimeout(() => {
+
+            resetarMapa();
+
+        }, 300);
+
+    })
+
+    .catch(error => {
+
+        console.error(error);
+
+        document
+            .getElementById(
+                "lista-bairros-conteudo"
+            )
+            .innerHTML = `
+
+                <div style="
+                    padding:25px;
+                    text-align:center;
+                    color:#ef4444;
+                    font-size:11px;
+                ">
+
+                    Não foi possível carregar
+                    os dados geográficos.
+
+                </div>
+
+            `;
+    });
+
+
+
+    /* =========================================================
+       FILTROS
+    ========================================================== */
+
+    function aplicarFiltros() {
+
+        const textoBusca =
+            document
+                .getElementById("buscaLocal")
+                .value
+                .toLowerCase()
+                .trim();
+
+
+        const zonaSelecionada =
+            document
+                .getElementById("filtroZona")
+                .value;
+
+
+        camadasLocaisGrupo
+            .clearLayers();
+
+
+        const eleitoresPorBairro = {};
+
+        const locaisPorBairro = {};
+
+        let totalExibidos = 0;
+
+        let totalEleitores =
+            0;
+
+
+        dadosLocaisOriginais
+            .forEach(item => {
+
+
+                const nome =
+                    item.nome
+                        .toLowerCase();
+
+
+                const bairro =
+                    item.bairroCalculado
+                        .toLowerCase();
+
+
+                const matchTexto =
+
+                    !textoBusca ||
+
+                    nome.includes(
+                        textoBusca
+                    ) ||
+
+                    bairro.includes(
+                        textoBusca
+                    );
+
+
+                const matchZona =
+
+                    zonaSelecionada === "TODAS" ||
+
+                    String(item.zona) ===
+                    String(zonaSelecionada);
+
+
+                if (
+                    matchTexto &&
+                    matchZona
+                ) {
+
+                    totalExibidos++;
+
+                    totalEleitores +=
+                        item.eleitores;
+
+
+                    if (
+                        !eleitoresPorBairro[
+                            item.bairroCalculado
+                        ]
+                    ) {
+
+                        eleitoresPorBairro[
+                            item.bairroCalculado
+                        ] = 0;
+
+
+                        locaisPorBairro[
+                            item.bairroCalculado
+                        ] = [];
+                    }
+
+
+                    eleitoresPorBairro[
+                        item.bairroCalculado
+                    ] +=
+                        item.eleitores;
+
+
+                    locaisPorBairro[
+                        item.bairroCalculado
+                    ].push(item);
+
+
+
+                    /* =================================================
+                       MARCADOR
+                    ================================================== */
+
+                    const raio =
+
+                        Math.max(
+                            6,
+                            Math.min(
+                                23,
+                                5 +
+                                item.eleitores /
+                                350
+                            )
+                        );
+
+
+                    const marker =
+                        L.circleMarker(
+                            item.latlng,
+                            {
+
+                                radius:
+                                    raio,
+
+                                fillColor:
+                                    "#2563eb",
+
+                                color:
+                                    "#ffffff",
+
+                                weight:
+                                    2,
+
+                                fillOpacity:
+                                    .88
+
+                            }
+                        );
+
+
+                    marker.nomeRef =
+                        item.nome;
+
+
+                    marker.bairroRef =
+                        item.bairroCalculado;
+
+
+                    marker.bindPopup(`
+
+                        <div class="popup">
+
+                            <div class="popup-title">
+
+                                ${escaparHTML(
+                                    item.nome
+                                )}
+
+                            </div>
+
+
+                            <div class="popup-row">
+
+                                <span class="popup-label">
+                                    Bairro
+                                </span>
+
+                                <span class="popup-value">
+                                    ${escaparHTML(
+                                        item.bairroCalculado
+                                    )}
+                                </span>
+
+                            </div>
+
+
+                            <div class="popup-row">
+
+                                <span class="popup-label">
+                                    Endereço
+                                </span>
+
+                                <span class="popup-value">
+                                    ${escaparHTML(
+                                        item.endereco
+                                    )}
+                                </span>
+
+                            </div>
+
+
+                            <div class="popup-row">
+
+                                <span class="popup-label">
+                                    Zona
+                                </span>
+
+                                <span class="popup-value">
+                                    ${escaparHTML(
+                                        item.zona
+                                    )}
+                                </span>
+
+                            </div>
+
+
+                            <div class="popup-total">
+
+                                <small>
+                                    Eleitores
+                                </small>
+
+                                <strong>
+                                    ${formatarNumero(
+                                        item.eleitores
+                                    )}
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+                    `);
+
+
+                    camadasLocaisGrupo
+                        .addLayer(marker);
+                }
+
+            });
+
+
+
+        /* =====================================================
+           ATUALIZA STATUS
+        ====================================================== */
+
+        document
+            .getElementById(
+                "contador-resultados"
+            )
+            .textContent =
+            `${totalExibidos} locais`;
+
+
+        const quantidadeBairros =
+            Object.keys(
+                eleitoresPorBairro
+            ).length;
+
+
+        document
+            .getElementById(
+                "contador-bairros"
+            )
+            .textContent =
+            `${quantidadeBairros} bairros`;
+
+
+        document
+            .getElementById(
+                "mapStatusValue"
+            )
+            .textContent =
+            formatarNumero(
+                totalEleitores
+            );
+
+
+        document
+            .getElementById(
+                "mapStatusSub"
+            )
+            .textContent =
+            `${totalExibidos} locais exibidos`;
+
+
+
+        /* =====================================================
+           SIDEBAR
+        ====================================================== */
+
+        const container =
+            document.getElementById(
+                "lista-bairros-conteudo"
+            );
+
+
+        const bairrosOrdenados =
+
+            Object.entries(
+                eleitoresPorBairro
+            )
+            .sort(
+                (a, b) =>
+                    b[1] - a[1]
+            );
+
+
+        if (!bairrosOrdenados.length) {
+
+            container.innerHTML = `
+
+                <div style="
+                    padding:30px 20px;
+                    text-align:center;
+                    color:#64748b;
+                    font-size:11px;
+                ">
+
+                    Nenhum bairro ou local
+                    encontrado.
+
+                </div>
+
+            `;
+
+            return;
+        }
+
+
+        let html = "";
+
+
+        bairrosOrdenados
+            .forEach(
+                ([bairro, total]) => {
+
+
+                    const locais =
+                        locaisPorBairro[
+                            bairro
+                        ] || [];
+
+
+                    locais.sort(
+                        (a, b) =>
+                            b.eleitores -
+                            a.eleitores
+                    );
+
+
+                    let htmlLocais = "";
+
+
+                    locais.forEach(
+                        local => {
+
+                            htmlLocais += `
+
+                                <div
+                                    class="local-subitem"
+                                    onclick="
+                                        event.stopPropagation();
+                                        focarLocal(
+                                            '${escaparHTML(local.nome)}'
+                                        )
+                                    "
+                                >
+
+                                    <span class="local-name">
+
+                                        ${escaparHTML(
+                                            local.nome
+                                        )}
+
+                                    </span>
+
+                                    <span class="local-value">
+
+                                        ${formatarNumero(
+                                            local.eleitores
+                                        )}
+
+                                    </span>
+
+                                </div>
+
+                            `;
+                        }
+                    );
+
+
+                    html += `
+
+                        <div
+                            class="bairro-item"
+                            data-bairro="${escaparHTML(bairro)}"
+                            onclick="
+                                focarBairro(
+                                    '${escaparHTML(bairro)}',
+                                    this
+                                )
+                            "
+                        >
+
+                            <div class="bairro-linha">
+
+                                <div class="bairro-info">
+
+                                    <div class="bairro-nome">
+
+                                        ${escaparHTML(
+                                            bairro
+                                        )}
+
+                                    </div>
+
+                                    <div class="bairro-meta">
+
+                                        ${locais.length}
+                                        local(is) de votação
+
+                                    </div>
+
+                                </div>
+
+
+                                <span
+                                    class="bairro-eleitores"
+                                >
+
+                                    ${formatarNumero(
+                                        total
+                                    )}
+
+                                </span>
+
+                            </div>
+
+
+                            <div class="locais-container">
+
+                                ${htmlLocais}
+
+                            </div>
+
+                        </div>
+
+                    `;
+                }
+            );
+
+
+        container.innerHTML =
+            html;
+    }
+
+
+
+    /* =========================================================
+       FOCAR BAIRRO
+    ========================================================== */
+
+    function focarBairro(
+        nomeBairro,
+        elementoHtml
+    ) {
+
+
+        /* Remove seleção */
+
+        document
+            .querySelectorAll(
+                ".bairro-item"
+            )
+            .forEach(el => {
+
+                el.classList
+                    .remove("ativo");
+
+            });
+
+
+        /* Seleciona */
+
+        if (elementoHtml) {
+
+            elementoHtml
+                .classList
+                .add("ativo");
+        }
+
+
+        if (!camadaBairrosGlobal)
+            return;
+
+
+        let bairroEncontrado =
+            null;
+
+
+        /* =====================================================
+           LOCALIZA POLÍGONO
+        ====================================================== */
+
+        camadaBairrosGlobal
+            .eachLayer(layer => {
+
+
+                layer.setStyle({
+
+                    color:
+                        "#94a3b8",
+
+                    weight:
+                        1,
+
+                    fillColor:
+                        "#3b82f6",
+
+                    fillOpacity:
+                        0.02
+
+                });
+
+
+                const nome =
+                    obterValorGeo(
+                        layer.feature.properties || {},
+                        [
+                            "nome",
+                            "bairro",
+                            "NOME",
+                            "BAIRRO",
+                            "nome_bairro"
+                        ]
+                    );
+
+
+                if (
+                    nome &&
+                    nome
+                        .toString()
+                        .toLowerCase() ===
+                    nomeBairro
+                        .toString()
+                        .toLowerCase()
+                ) {
+
+                    bairroEncontrado =
+                        layer;
+                }
+
+            });
+
+
+
+        /* =====================================================
+           ZOOM
+        ====================================================== */
+
+        if (bairroEncontrado) {
+
+
+            bairroEncontrado.setStyle({
+
+                color:
+                    "#1d4ed8",
+
+                weight:
+                    3,
+
+                fillColor:
+                    "#3b82f6",
+
+                fillOpacity:
+                    0.20
+
+            });
+
+
+            if (
+                bairroEncontrado.bringToFront
+            ) {
+
+                bairroEncontrado
+                    .bringToFront();
+            }
+
+
+            const bounds =
+                bairroEncontrado
+                    .getBounds();
+
+
+            map.fitBounds(
+                bounds,
+                {
+
+                    padding:
+                        [70, 70],
+
+                    maxZoom:
+                        16,
+
+                    animate:
+                        true,
+
+                    duration:
+                        .8
+
+                }
+            );
+
+        } else {
+
+            console.warn(
+                "Bairro não encontrado:",
+                nomeBairro
+            );
+        }
+
+    }
+
+
+
+    /* =========================================================
+       FOCAR LOCAL
+    ========================================================== */
+
+    function focarLocal(
+        nomeLocal
+    ) {
+
+        let encontrado =
+            false;
+
+
+        camadasLocaisGrupo
+            .eachLayer(layer => {
+
+
+                if (
+                    layer.nomeRef ===
+                    nomeLocal
+                ) {
+
+                    encontrado =
+                        true;
+
+
+                    map.setView(
+                        layer.getLatLng(),
+                        17,
+                        {
+                            animate: true
+                        }
+                    );
+
+
+                    setTimeout(
+                        () => {
+                            layer.openPopup();
+                        },
+                        400
+                    );
+
+                }
+
+            });
+
+
+        if (!encontrado) {
+
+            console.warn(
+                "Local não encontrado:",
+                nomeLocal
+            );
+        }
+    }
+
+
+
+    /* =========================================================
+       LOCALIZAÇÃO DO USUÁRIO
+    ========================================================== */
+
+    function localizarUsuario() {
+
+        if (!navigator.geolocation) {
+
+            alert(
+                "Seu navegador não suporta geolocalização."
+            );
+
+            return;
+        }
+
+
+        navigator.geolocation.getCurrentPosition(
+
+            position => {
+
+                const lat =
+                    position.coords.latitude;
+
+                const lng =
+                    position.coords.longitude;
+
+
+                map.setView(
+                    [lat, lng],
+                    16,
+                    {
+                        animate: true
+                    }
+                );
+
+
+                L.circleMarker(
+                    [lat, lng],
+                    {
+
+                        radius: 8,
+
+                        fillColor:
+                            "#10b981",
+
+                        color:
+                            "#ffffff",
+
+                        weight:
+                            3,
+
+                        fillOpacity:
+                            1
+
+                    }
+                )
+                .addTo(map)
+                .bindPopup(
+                    "Sua localização"
+                )
+                .openPopup();
+
+            },
+
+            error => {
+
+                alert(
+                    "Não foi possível obter sua localização."
+                );
+
+            },
+
+            {
+                enableHighAccuracy:
+                    true,
+
+                timeout:
+                    10000
+            }
+        );
+    }
+
+
+
+    /* =========================================================
+       TELA CHEIA
+    ========================================================== */
+
+    function alternarTelaCheia() {
+
+        const elemento =
+            document.getElementById(
+                "map"
+            );
+
+
+        if (
+            !document.fullscreenElement
+        ) {
+
+            elemento
+                .requestFullscreen()
+                .catch(() => {
+
+                    alert(
+                        "Tela cheia não disponível neste navegador."
+                    );
+
+                });
+
+        } else {
+
+            document
+                .exitFullscreen();
+        }
+    }
+
+
+
+    /* =========================================================
+       GRÁFICO DE BAIRROS
+       TODOS OS BAIRROS
+    ========================================================== */
+
+    function gerarGraficoBairros() {
+
+
+        if (
+            !dadosLocaisOriginais.length
+        )
+            return;
+
+
+        const agregacao = {};
+
+
+        dadosLocaisOriginais
+            .forEach(item => {
+
+                const bairro =
+                    item.bairroCalculado ||
+                    "Não informado";
+
+
+                agregacao[bairro] =
+                    (
+                        agregacao[bairro] ||
+                        0
+                    ) +
+                    item.eleitores;
+
+            });
+
+
+        const todosBairros =
+
+            Object.entries(
+                agregacao
+            )
+            .sort(
+                (a, b) =>
+                    b[1] - a[1]
+            );
+
+
+        const canvas =
+            document.getElementById(
+                "chartBairrosDinamico"
+            );
+
+
+        const container =
+            document.getElementById(
+                "bairroChartContainer"
+            );
+
+
+        /*
+           Altura dinâmica:
+           cada bairro recebe aproximadamente
+           30px.
+        */
+
+        const altura =
+
+            Math.max(
+                450,
+                todosBairros.length *
+                30
+            );
+
+
+        container.style.height =
+            `${altura}px`;
+
+
+        if (graficoBairros) {
+
+            graficoBairros.destroy();
+        }
+
+
+        graficoBairros =
+            new Chart(
+                canvas,
+                {
+
+                    type:
+                        "bar",
+
+
+                    data: {
+
+                        labels:
+                            todosBairros
+                                .map(
+                                    item =>
+                                        item[0]
+                                ),
+
+
+                        datasets: [
+
+                            {
+
+                                label:
+                                    "Eleitores",
+
+                                data:
+                                    todosBairros
+                                        .map(
+                                            item =>
+                                                item[1]
+                                        ),
+
+
+                                backgroundColor:
+                                    "#2563eb",
+
+
+                                borderRadius:
+                                    5,
+
+
+                                borderSkipped:
+                                    false,
+
+
+                                barThickness:
+                                    18,
+
+
+                                maxBarThickness:
+                                    22
+
+                            }
+
+                        ]
+
+                    },
+
+
+                    options: {
+
+                        indexAxis:
+                            "y",
+
+
+                        responsive:
+                            true,
+
+
+                        maintainAspectRatio:
+                            false,
+
+
+                        interaction: {
+
+                            mode:
+                                "nearest",
+
+                            intersect:
+                                true
+
+                        },
+
+
+                        plugins: {
+
+                            legend: {
+
+                                display:
+                                    false
+
+                            },
+
+
+                            tooltip: {
+
+                                backgroundColor:
+                                    "#0f172a",
+
+                                titleFont: {
+
+                                    size:
+                                        12,
+
+                                    weight:
+                                        "700"
+
+                                },
+
+                                bodyFont: {
+
+                                    size:
+                                        11
+
+                                },
+
+                                padding:
+                                    11,
+
+
+                                callbacks: {
+
+                                    label:
+                                        function(context) {
+
+                                            return (
+
+                                                " " +
+
+                                                formatarNumero(
+                                                    context.raw
+                                                ) +
+
+                                                " eleitores"
+
+                                            );
+
+                                        }
+
+                                }
+
+                            },
+
+
+                            datalabels: {
+
+                                color:
+                                    "#334155",
+
+                                anchor:
+                                    "end",
+
+                                align:
+                                    "right",
+
+                                offset:
+                                    4,
+
+                                font: {
+
+                                    size:
+                                        9,
+
+                                    weight:
+                                        "700"
+
+                                },
+
+                                formatter:
+                                    function(value) {
+
+                                        return formatarNumero(
+                                            value
+                                        );
+
+                                    }
+
+                            }
+
+                        },
+
+
+                        scales: {
+
+                            x: {
+
+                                beginAtZero:
+                                    true,
+
+                                grid: {
+
+                                    color:
+                                        "#e2e8f0"
+
+                                },
+
+                                ticks: {
+
+                                    color:
+                                        "#64748b",
+
+                                    font: {
+
+                                        size:
+                                            9
+
+                                    },
+
+                                    callback:
+                                        function(value) {
+
+                                            return formatarNumero(
+                                                value
+                                            );
+
+                                        }
+
+                                }
+
+                            },
+
+
+                            y: {
+
+                                grid: {
+
+                                    display:
+                                        false
+
+                                },
+
+                                ticks: {
+
+                                    color:
+                                        "#334155",
+
+                                    font: {
+
+                                        size:
+                                            10,
+
+                                        weight:
+                                            "600"
+
+                                    }
+
+                                }
+
+                            }
+
+                        },
+
+
+                        onClick:
+                            function(
+                                event,
+                                elements
+                            ) {
+
+                                if (
+                                    !elements.length
+                                )
+                                    return;
+
+
+                                const index =
+                                    elements[0]
+                                        .index;
+
+
+                                const bairro =
+                                    todosBairros[
+                                        index
+                                    ][0];
+
+
+                                selecionarBairroPeloGrafico(
+                                    bairro
+                                );
+
+                            }
+
+                    }
+
+                }
+            );
+    }
+
+
+
+    /* =========================================================
+       CLICAR NO GRÁFICO → MAPA
+    ========================================================== */
+
+    function selecionarBairroPeloGrafico(
+        nomeBairro
+    ) {
+
+
+        mudarAbaPorId(
+            "mapas"
+        );
+
+
+        setTimeout(
+            () => {
+
+
+                const elemento =
+                    document.querySelector(
+                        `.bairro-item[data-bairro="${CSS.escape(nomeBairro)}"]`
+                    );
+
+
+                if (elemento) {
+
+                    focarBairro(
+                        nomeBairro,
+                        elemento
+                    );
+
+
+                    elemento.scrollIntoView({
+
+                        behavior:
+                            "smooth",
+
+                        block:
+                            "center"
+
+                    });
+
+                } else {
+
+                    focarBairro(
+                        nomeBairro,
+                        null
+                    );
+                }
+
+
+            },
+            200
+        );
+
+    }
+
+
+
+    /* =========================================================
+       CONFIGURAÇÃO GRÁFICOS
+    ========================================================== */
+
+    Chart.register(
+        ChartDataLabels
+    );
+
+
+    const configBase = {
+
+        responsive:
+            true,
+
+        maintainAspectRatio:
+            false,
+
+        plugins: {
+
+            legend: {
+
+                display:
+                    false
+
+            },
+
+            datalabels: {
+
+                color:
+                    "#334155",
+
+                font: {
+
+                    size:
+                        10,
+
+                    weight:
+                        "700"
+
+                },
+
+                formatter:
+                    value =>
+                        formatarNumero(
+                            value
+                        )
+
+            },
+
+            tooltip: {
+
+                backgroundColor:
+                    "#0f172a",
+
+                padding:
+                    10
+
+            }
+
+        },
+
+        scales: {
+
+            x: {
+
+                grid: {
+
+                    color:
+                        "#f1f5f9"
+
+                },
+
+                ticks: {
+
+                    color:
+                        "#64748b",
+
+                    font: {
+
+                        size:
+                            9
+
+                    }
+
+                }
+
+            },
+
+            y: {
+
+                grid: {
+
+                    display:
+                        false
+
+                },
+
+                ticks: {
+
+                    color:
+                        "#64748b",
+
+                    font: {
+
+                        size:
+                            9
+
+                    }
+
+                }
+
+            }
+
+        }
+
+    };
+
+
+
+    /* =========================================================
+       GRÁFICOS DEMOGRÁFICOS
+    ========================================================== */
+
+    function inicializarGraficosDemograficos() {
+
+
+        /* =====================================================
+           GÊNERO
+        ====================================================== */
+
+        new Chart(
+
+            document.getElementById(
+                "chartGenero"
+            ),
+
+            {
+
+                type:
+                    "doughnut",
+
+                data: {
+
+                    labels: [
+                        "Feminino",
+                        "Masculino"
+                    ],
+
+                    datasets: [
+
+                        {
+
+                            data: [
+                                96639,
+                                85485
+                            ],
+
+                            backgroundColor: [
+                                "#38bdf8",
+                                "#1e3a8a"
+                            ],
+
+                            borderWidth:
+                                0
+
+                        }
+
+                    ]
+
+                },
+
+                options: {
+
+                    responsive:
+                        true,
+
+                    maintainAspectRatio:
+                        false,
+
+                    cutout:
+                        "68%",
+
+                    plugins: {
+
+                        legend: {
+
+                            display:
+                                true,
+
+                            position:
+                                "bottom",
+
+                            labels: {
+
+                                boxWidth:
+                                    10,
+
+                                font: {
+
+                                    size:
+                                        10
+
+                                }
+
+                            }
+
+                        },
+
+                        datalabels: {
+
+                            color:
+                                "#ffffff",
+
+                            font: {
+
+                                weight:
+                                    "800",
+
+                                size:
+                                    11
+
+                            },
+
+                            formatter:
+                                function(value) {
+
+                                    return formatarNumero(
+                                        value
+                                    );
+
+                                }
+
+                        }
+
+                    }
+
+                }
+
+            }
+        );
+
+
+
+        /* =====================================================
+           TIPO DE VOTO
+        ====================================================== */
+
+        new Chart(
+
+            document.getElementById(
+                "chartTipoVoto"
+            ),
+
+            {
+
+                type:
+                    "doughnut",
+
+                data: {
+
+                    labels: [
+                        "Obrigatório",
+                        "Facultativo"
+                    ],
+
+                    datasets: [
+
+                        {
+
+                            data: [
+                                167134,
+                                14990
+                            ],
+
+                            backgroundColor: [
+                                "#2563eb",
+                                "#93c5fd"
+                            ],
+
+                            borderWidth:
+                                0
+
+                        }
+
+                    ]
+
+                },
+
+                options: {
+
+                    responsive:
+                        true,
+
+                    maintainAspectRatio:
+                        false,
+
+                    cutout:
+                        "68%",
+
+                    plugins: {
+
+                        legend: {
+
+                            display:
+                                true,
+
+                            position:
+                                "bottom",
+
+                            labels: {
+
+                                boxWidth:
+                                    10,
+
+                                font: {
+
+                                    size:
+                                        10
+
+                                }
+
+                            }
+
+                        },
+
+                        datalabels: {
+
+                            color:
+                                "#ffffff",
+
+                            font: {
+
+                                weight:
+                                    "800",
+
+                                size:
+                                    11
+
+                            },
+
+                            formatter:
+                                function(value) {
+
+                                    return formatarNumero(
+                                        value
+                                    );
+
+                                }
+
+                        }
+
+                    }
+
+                }
+
+            }
+        );
+
+
+
+        /* =====================================================
+           INSTRUÇÃO
+        ====================================================== */
+
+        new Chart(
+
+            document.getElementById(
+                "chartInstrucao"
+            ),
+
+            {
+
+                type:
+                    "bar",
+
+                data: {
+
+                    labels: [
+
+                        "Ens. Médio Comp.",
+
+                        "Superior Comp.",
+
+                        "Ens. Médio Incomp.",
+
+                        "Ens. Fund. Incomp.",
+
+                        "Superior Incomp.",
+
+                        "Ens. Fund. Comp.",
+
+                        "Lê e Escreve",
+
+                        "Analfabeto"
+
+                    ],
+
+                    datasets: [
+
+                        {
+
+                            data: [
+
+                                57135,
+
+                                33157,
+
+                                26285,
+
+                                25565,
+
+                                21082,
+
+                                14651,
+
+                                2915,
+
+                                1334
+
+                            ],
+
+                            backgroundColor:
+                                "#38bdf8",
+
+                            borderRadius:
+                                5,
+
+                            borderSkipped:
+                                false
+
+                        }
+
+                    ]
+
+                },
+
+                options: {
+
+                    ...configBase,
+
+                    indexAxis:
+                        "y"
+
+                }
+
+            }
+
+        );
+
+
+
+        /* =====================================================
+           FAIXA ETÁRIA
+        ====================================================== */
+
+        new Chart(
+
+            document.getElementById(
+                "chartFaixaEtaria"
+            ),
+
+            {
+
+                type:
+                    "bar",
+
+                data: {
+
+                    labels: [
+
+                        "16–20",
+
+                        "21–29",
+
+                        "30–39",
+
+                        "40–49",
+
+                        "50–59",
+
+                        "60–69",
+
+                        "70–79",
+
+                        "80+"
+
+                    ],
+
+                    datasets: [
+
+                        {
+
+                            label:
+                                "Eleitores",
+
+                            data: [
+
+                                8722,
+
+                                30778,
+
+                                40169,
+
+                                40011,
+
+                                28136,
+
+                                21443,
+
+                                10716,
+
+                                2103
+
+                            ],
+
+                            backgroundColor:
+                                "#2563eb",
+
+                            borderRadius:
+                                5,
+
+                            borderSkipped:
+                                false
+
+                        }
+
+                    ]
+
+                },
+
+                options: {
+
+                    ...configBase,
+
+                    scales: {
+
+                        x: {
+
+                            grid: {
+
+                                display:
+                                    false
+
+                            },
+
+                            ticks: {
+
+                                color:
+                                    "#64748b"
+
+                            }
+
+                        },
+
+                        y: {
+
+                            beginAtZero:
+                                true,
+
+                            grid: {
+
+                                color:
+                                    "#f1f5f9"
+
+                            },
+
+                            ticks: {
+
+                                color:
+                                    "#64748b",
+
+                                callback:
+                                    function(value) {
+
+                                        return formatarNumero(
+                                            value
+                                        );
+
+                                    }
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+        );
+
+    }
+
+
+</script>
+
 </body>
+
 </html>
