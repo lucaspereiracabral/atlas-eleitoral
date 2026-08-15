@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - '.github/workflows/run-age-chart-patch.yml'
+      - 'scripts/patch_age_chart.py'
 permissions:
   contents: write
 jobs:
