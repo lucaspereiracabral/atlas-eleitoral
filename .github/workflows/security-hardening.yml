@@ -1,0 +1,63 @@
+name: Frontend security hardening
+on:
+  push:
+    paths:
+      - '.github/workflows/security-hardening.yml'
+permissions:
+  contents: write
+jobs:
+  harden:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Harden frontend
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+
+          # Pin Chart.js to the same reviewed version already used by analytics.js.
+          s=s.replace('https://cdn.jsdelivr.net/npm/chart.js\"></script>', 'https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js\"></script>')
+
+          # Add a single HTML escaping helper for all database/GeoJSON text rendered into HTML strings.
+          needle='    function format(num) { return Number(num||0).toLocaleString("pt-BR"); }\n'
+          helper='    function format(num) { return Number(num||0).toLocaleString("pt-BR"); }\n    function escapeHtml(value) {\n        return String(value ?? "").replace(/[&<>"\']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","\\\"":"&quot;","\'":"&#39;"}[ch]));\n    }\n'
+          if needle in s and 'function escapeHtml(value)' not in s:
+              s=s.replace(needle,helper,1)
+
+          # Escape census/TRE values before injecting into Leaflet HTML.
+          replacements={
+            '${setor}':'${escapeHtml(setor)}',
+            '${bairroIBGE}':'${escapeHtml(bairroIBGE)}',
+            '<b>${nomeLoc}</b>':'<b>${escapeHtml(nomeLoc)}</b>',
+            '<div class="pop-title">${d.nome}</div>':'<div class="pop-title">${escapeHtml(d.nome)}</div>',
+            '<div class="pop-row"><span>Bairro</span><strong>${d.bairro}</strong></div>':'<div class="pop-row"><span>Bairro</span><strong>${escapeHtml(d.bairro)}</strong></div>',
+            '<div class="pop-row"><span>Zona</span><strong>${d.zona}</strong></div>':'<div class="pop-row"><span>Zona</span><strong>${escapeHtml(d.zona)}</strong></div>',
+            '<span>${l.nome}</span>':'<span>${escapeHtml(l.nome)}</span>',
+            '<span class="item-title">${b}</span>':'<span class="item-title">${escapeHtml(b)}</span>',
+          }
+          for a,b in replacements.items(): s=s.replace(a,b)
+
+          # Encode values embedded in inline JS attributes to prevent quote-breaking injection.
+          s=s.replace("focarLocalTRE('${l.nome}')", "focarLocalTRE(decodeURIComponent('${encodeURIComponent(l.nome)}'))")
+          s=s.replace("focarBairroTRE('${b}', this)", "focarBairroTRE(decodeURIComponent('${encodeURIComponent(b)}'), this)")
+
+          # Explicit PKCE OAuth flow. Keep auto-refresh/persistence because this is a static SPA.
+          s=s.replace('{ auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }', '{ auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce" } }')
+
+          p.write_text(s,encoding='utf-8')
+
+          # Fix incomplete quote entity in analytics escaping helper.
+          a=Path('analytics.js')
+          t=a.read_text(encoding='utf-8')
+          t=t.replace("'\\\"':'&quot'", "'\\\"':'&quot;'")
+          a.write_text(t,encoding='utf-8')
+          PY
+      - name: Commit hardening
+        run: |
+          git config user.name "GeoCode Security"
+          git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
+          git add index.html analytics.js
+          git commit -m "Harden OAuth flow and HTML rendering" || exit 0
+          git push
