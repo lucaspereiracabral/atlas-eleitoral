@@ -1,0 +1,78 @@
+name: Import Eleitorado 2026
+on:
+  push:
+    paths:
+      - '.github/workflows/import-eleitorado-2026.yml'
+permissions:
+  contents: read
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Import CSV into Supabase
+        env:
+          SUPABASE_URL: https://hcrxnoptatkzlghamykt.supabase.co
+          SUPABASE_KEY: sb_publishable_SfE8ucasIUUK1K7vAxIrig_hOkX85gh
+        run: |
+          python - <<'PY'
+          import csv, json, os, urllib.request, urllib.error
+          from pathlib import Path
+
+          path = Path('eleitorado itajai 2026.csv')
+          mapping = {
+            'Ano de eleição':'ano_eleicao',
+            'Cor / Raça':'cor_raca',
+            'Estado civil':'estado_civil',
+            'Faixa etária':'faixa_etaria',
+            'Gênero':'genero',
+            'Grau de instrução':'grau_instrucao',
+            'Identidade de gênero':'identidade_genero',
+            'Intérprete de libras':'interprete_libras',
+            'Município':'municipio',
+            'País':'pais',
+            'Quilombola':'quilombola',
+            'Região':'regiao',
+            'UF':'uf',
+            'Quantidade de eleitores com biometria':'qtd_biometria',
+            'Quantidade de eleitores com deficiência':'qtd_deficiencia',
+            'Quantidade de eleitores com nome social':'qtd_nome_social',
+            'Quantidade de eleitores':'qtd_eleitores',
+            'Quantidade voto facultativo':'qtd_voto_facultativo',
+            'Quantidade voto facultativo deficiência':'qtd_voto_facultativo_deficiencia',
+            'Quantidade voto obrigatório':'qtd_voto_obrigatorio',
+            'Quantidade voto obrigatório deficiência':'qtd_voto_obrigatorio_deficiencia',
+            'Data de carga':'data_carga'
+          }
+          numeric = {'ano_eleicao','qtd_biometria','qtd_deficiencia','qtd_nome_social','qtd_eleitores','qtd_voto_facultativo','qtd_voto_facultativo_deficiencia','qtd_voto_obrigatorio','qtd_voto_obrigatorio_deficiencia'}
+
+          rows=[]
+          with path.open(encoding='utf-8-sig', newline='') as f:
+            reader=csv.DictReader(f, delimiter=';')
+            for r in reader:
+              out={}
+              for src,dst in mapping.items():
+                v=(r.get(src) or '').strip()
+                if dst in numeric:
+                  out[dst]=int(v) if v else 0
+                else:
+                  out[dst]=v or None
+              rows.append(out)
+
+          url=os.environ['SUPABASE_URL'] + '/rest/v1/eleitorado_2026'
+          key=os.environ['SUPABASE_KEY']
+          headers={'apikey':key,'Authorization':'Bearer '+key,'Content-Type':'application/json','Prefer':'return=minimal'}
+          total=0
+          for i in range(0,len(rows),500):
+            batch=rows[i:i+500]
+            req=urllib.request.Request(url,data=json.dumps(batch,ensure_ascii=False).encode('utf-8'),headers=headers,method='POST')
+            try:
+              with urllib.request.urlopen(req,timeout=60) as resp:
+                if resp.status not in (200,201,204): raise RuntimeError(resp.status)
+            except urllib.error.HTTPError as e:
+              print(e.read().decode('utf-8','replace'))
+              raise
+            total += len(batch)
+            print('Imported', total, 'of', len(rows))
+          print('DONE', total)
+          PY
