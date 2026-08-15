@@ -66,8 +66,8 @@
             background: transparent;
             border: 1px solid rgba(255, 255, 255, 0.3);
             color: white;
-            padding: 8.00px 16.00px;
-            border-radius: 4.00px;
+            padding: 8px 16px;
+            border-radius: 4px;
             cursor: pointer;
             font-size: 0.90rem;
             font-weight: 500;
@@ -149,12 +149,11 @@
             min-height: 500px;
         }
 
-        /* Estilo da Página de Gráficos */
+        /* Estilo da Página de Gráficos e Estatísticas */
         .charts-grid {
             display: grid;
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr 1fr;
             gap: 20px;
-            flex: 1;
         }
 
         .chart-box {
@@ -176,12 +175,12 @@
 
         .chart-container {
             position: relative;
-            flex: 1;
-            min-height: 500px; /* Altura ideal para exibir os maiores colégios eleitorais */
+            height: 350px;
+            width: 100%;
         }
 
-        @media (max-width: 768.00px) {
-            .home-grid {
+        @media (max-width: 900px) {
+            .charts-grid, .home-grid {
                 grid-template-columns: 1fr;
             }
             header {
@@ -202,7 +201,7 @@
         <nav>
             <button class="nav-btn active" onclick="mudarAba('inicio', event)">Início</button>
             <button class="nav-btn" onclick="mudarAba('mapas', event)">Locais de Votação</button>
-            <button class="nav-btn" onclick="mudarAba('graficos', event)">Gráficos e Estatísticas</button>
+            <button class="nav-btn" onclick="mudarAba('estatisticas', event)">Estatísticas Eleitorais</button>
         </nav>
     </header>
 
@@ -214,12 +213,12 @@
             
             <div class="home-grid">
                 <div class="home-card">
-                    <h3>🗺️ Análise de Votação</h3>
-                    <p>Visualize os locais de votação espacializados no município, com dimensionamento proporcional ao número de eleitores por seção.</p>
+                    <h3>🗺️ Análise Espacial</h3>
+                    <p>Visualize os locais de votação espacializados no município, dimensionados pelo quantitativo de eleitores.</p>
                 </div>
                 <div class="home-card">
-                    <h3>📊 Estatísticas Municipais</h3>
-                    <p>Consulte gráficos dinâmicos com o quantitativo de eleitores extraídos diretamente das bases oficiais do TRE.</p>
+                    <h3>📊 Demografia Eleitoral</h3>
+                    <p>Consulte indicadores detalhados sobre gênero, grau de instrução, faixa etária e estado civil do eleitorado.</p>
                 </div>
             </div>
         </div>
@@ -231,14 +230,23 @@
         <div id="map"></div>
     </div>
 
-    <!-- ABA 3: GRÁFICOS -->
-    <div id="graficos" class="tab-content">
+    <!-- ABA 3: GRÁFICOS E ESTATÍSTICAS -->
+    <div id="estatisticas" class="tab-content">
         <div class="charts-grid">
             <div class="chart-box">
-                <div class="chart-title">Maiores Locais de Votação por Número de Eleitores</div>
-                <div class="chart-container">
-                    <canvas id="graficoLocaisVotacao"></canvas>
-                </div>
+                <div class="chart-title">Eleitorado por Gênero</div>
+                <div class="chart-container"><canvas id="chartGenero"></canvas></div>
+            </div>
+            <div class="chart-box">
+                <div class="chart-title">Eleitorado por Estado Civil</div>
+                <div class="chart-container"><canvas id="chartEstadoCivil"></canvas></div>
+            </div>
+            <div class="chart-box" style="grid-column: span 2;">
+                <div class="chart-title">Eleitorado por Grau de Instrução</div>
+                <div class="chart-container"><canvas id="chartInstrucao"></canvas></div>
+            </div>
+            <div class="chart-box" style="grid-column: span 2;">
+                <div class="chart-container" style="height: 450px;"><canvas id="chartFaixaEtaria"></canvas></div>
             </div>
         </div>
     </div>
@@ -246,6 +254,8 @@
     <!-- Bibliotecas Externas -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Biblioteca PapaParse para ler CSV no navegador -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
     <script>
         // Lógica de Alternância das Guias (Abas)
@@ -264,124 +274,117 @@
             }
         }
 
-        // Inicialização do Mapa (Leaflet centrado em Itajaí)
+        // Inicialização do Mapa (Leaflet)
         const map = L.map('map').setView([-26.91, -48.66], 13);
-
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
-        // Função auxiliar robusta para ler propriedades ignorando maiúsculas/minúsculas
-        function obterValor(props, chaves) {
+        function obterValorGeo(props, chaves) {
             for (let chave of chaves) {
                 for (let p in props) {
-                    if (p.toLowerCase() === chave.toLowerCase()) {
-                        return props[p];
-                    }
+                    if (p.toLowerCase() === chave.toLowerCase()) return props[p];
                 }
             }
             return null;
         }
 
-        // Carregamento do arquivo GeoJSON de Locais de Votação para o Mapa e Gráfico
+        // Carrega GeoJSON no Mapa
         fetch('locais_de_votacao_e_secoes.geojson')
-            .then(resposta => {
-                if (!resposta.ok) throw new Error("Erro HTTP: " + resposta.status);
-                return resposta.json();
-            })
-            .then(dadosGeoJSON => {
-                console.log("GeoJSON carregado com sucesso!", dadosGeoJSON);
-
-                // 1. PLOTAGEM NO MAPA
-                L.geoJSON(dadosGeoJSON, {
-                    pointToLayer: function (feature, latlng) {
-                        const props = feature.properties || {};
-                        const eleitoresVal = obterValor(props, ['TOTAL_EL_1', 'total_el_1']) || 150;
-                        const raio = Math.max(6, Math.min(24, Number(eleitoresVal) / 250));
-
+            .then(res => res.json())
+            .then(dadosGeo => {
+                L.geoJSON(dadosGeo, {
+                    pointToLayer: (feature, latlng) => {
+                        const p = feature.properties || {};
+                        const eleitores = Number(obterValorGeo(p, ['TOTAL_EL_1', 'total_el_1'])) || 150;
                         return L.circleMarker(latlng, {
-                            radius: raio,
-                            fillColor: "#0284c7",
-                            color: "#ffffff",
-                            weight: 1.5,
-                            opacity: 1,
-                            fillOpacity: 0.85
+                            radius: Math.max(6, Math.min(24, eleitores / 250)),
+                            fillColor: "#0284c7", color: "#ffffff", weight: 1.5, fillOpacity: 0.85
                         });
                     },
-                    onEachFeature: function (feature, layer) {
-                        const props = feature.properties || {};
-                        const nomeLocal = obterValor(props, ['LOCAL_DE_1', 'local_de_1']) || "Local de Votação";
-                        const endereco = obterValor(props, ['ENDERECO_1', 'endereco_1']) || "Endereço não informado";
-                        const bairro = obterValor(props, ['BAIRRO_1', 'bairro_1']) || "Bairro não informado";
-                        const zona = obterValor(props, ['ZONA_ELE_1', 'zona_ele_1']) || "N/A";
-                        const secoes = obterValor(props, ['SEÇÕES', 'seções', 'seções_1']) || "Não informadas";
-                        const totalEleitores = obterValor(props, ['TOTAL_EL_1', 'total_el_1']) || "Não informado";
-
+                    onEachFeature: (feature, layer) => {
+                        const p = feature.properties || {};
                         layer.bindPopup(`
-                            <div style="font-family: sans-serif; font-size: 0.9rem; line-height: 1.4; max-width: 260px;">
-                                <b style="color: #1e3a8a; font-size: 1rem;">${nomeLocal}</b><br>
-                                📍 <b>Endereço:</b> ${endereco} - ${bairro}<br>
-                                🏛️ <b>Zona:</b> ${zona} | <b>Seções:</b> ${secoes}<br>
-                                👥 <b>Total de Eleitores:</b> <b>${totalEleitores}</b>
+                            <div style="font-family: sans-serif; font-size: 0.9rem; line-height: 1.4;">
+                                <b style="color: #1e3a8a;">${obterValorGeo(p, ['LOCAL_DE_1', 'local_de_1']) || "Local"}</b><br>
+                                📍 ${obterValorGeo(p, ['ENDERECO_1', 'endereco_1']) || ""} - ${obterValorGeo(p, ['BAIRRO_1', 'bairro_1']) || ""}<br>
+                                👥 Total de Eleitores: <b>${obterValorGeo(p, ['TOTAL_EL_1', 'total_el_1']) || "N/A"}</b>
                             </div>
                         `);
                     }
                 }).addTo(map);
+            });
 
-                // 2. EXTRAÇÃO E ORDENAÇÃO DOS DADOS PARA O GRÁFICO DE BARRAS
-                const listaLocais = dadosGeoJSON.features.map(f => {
-                    const p = f.properties || {};
-                    return {
-                        nome: obterValor(p, ['LOCAL_DE_1', 'local_de_1']) || 'Desconhecido',
-                        eleitores: Number(obterValor(p, ['TOTAL_EL_1', 'total_el_1'])) || 0
-                    };
-                });
+        // PROCESSAMENTO DOS DADOS DO CSV PARA OS GRÁFICOS
+        fetch('eleitorado itajai 2026.csv')
+            .then(res => res.text())
+            .then(csvText => {
+                Papa.parse(csvText, {
+                    header: true,
+                    delimiter: ";",
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        const rows = results.data;
+                        
+                        // Funções auxiliares para somar por categoria
+                        const agruparPor = (coluna) => {
+                            const acc = {};
+                            rows.forEach(r => {
+                                const chave = r[coluna] || "Não informado";
+                                const qtd = Number(r['Quantidade de eleitores']) || 0;
+                                acc[chave] = (acc[chave] || 0) + qtd;
+                            });
+                            return acc;
+                        };
 
-                // Ordena do maior para o menor com base no número de eleitores
-                listaLocais.sort((a, b) => b.eleitores - a.eleitores);
-                
-                // Seleciona os 12 maiores locais para manter a visualização limpa
-                const topLocais = listaLocais.slice(0, 12);
-
-                const nomes = topLocais.map(l => l.nome);
-                const valores = topLocais.map(l => l.eleitores);
-
-                // 3. RENDERIZAÇÃO DO GRÁFICO DE BARRAS HORIZONTAIS
-                const ctx = document.getElementById('graficoLocaisVotacao').getContext('2d');
-                new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: nomes,
-                        datasets: [{
-                            label: 'Total de Eleitores',
-                            data: valores,
-                            backgroundColor: '#0284c7',
-                            borderRadius: 4
-                        }]
-                    },
-                    options: {
-                        indexAxis: 'y', // Deixa as barras na horizontal para facilitar a leitura dos nomes das escolas
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { display: false }
-                        },
-                        scales: {
-                            x: {
-                                beginAtZero: true,
-                                ticks: { font: { size: 11 } }
+                        // 1. Gênero
+                        const genData = agruparPor('Gênero');
+                        new Chart(document.getElementById('chartGenero'), {
+                            type: 'bar',
+                            data: {
+                                labels: Object.keys(genData),
+                                datasets: [{ data: Object.values(genData), backgroundColor: ['#0284c7', '#0284c7'] }]
                             },
-                            y: {
-                                ticks: { font: { size: 10 } }
-                            }
-                        }
+                            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                        });
+
+                        // 2. Estado Civil
+                        const civilData = agruparPor('Estado civil');
+                        new Chart(document.getElementById('chartEstadoCivil'), {
+                            type: 'bar',
+                            data: {
+                                labels: Object.keys(civilData),
+                                datasets: [{ data: Object.values(civilData), backgroundColor: '#0284c7' }]
+                            },
+                            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                        });
+
+                        // 3. Grau de Instrução (Barras Horizontais)
+                        const instData = agruparPor('Grau de instrução');
+                        // Ordena decrescente
+                        const instOrdenado = Object.entries(instData).sort((a,b) => b[1] - a[1]);
+                        new Chart(document.getElementById('chartInstrucao'), {
+                            type: 'bar',
+                            data: {
+                                labels: instOrdenado.map(i => i[0]),
+                                datasets: [{ label: 'Eleitores', data: instOrdenado.map(i => i[1]), backgroundColor: '#1e3a8a' }]
+                            },
+                            options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                        });
+
+                        // 4. Faixa Etária
+                        const idadeData = agruparPor('Faixa etária');
+                        new Chart(document.getElementById('chartFaixaEtaria'), {
+                            type: 'bar',
+                            data: {
+                                labels: Object.keys(idadeData),
+                                datasets: [{ label: 'Eleitores por Faixa Etária', data: Object.values(idadeData), backgroundColor: '#38bdf8' }]
+                            },
+                            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+                        });
                     }
                 });
-
-            })
-            .catch(erro => {
-                console.error("Erro ao carregar o GeoJSON para o gráfico:", erro);
             });
     </script>
 </body>
