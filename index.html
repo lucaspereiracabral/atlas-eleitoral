@@ -440,7 +440,7 @@ body:not(.auth-locked) #auth-gate { display: none; }
 
 <!-- SCRIPTS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -473,6 +473,9 @@ body:not(.auth-locked) #auth-gate { display: none; }
 
     // UTILS
     function format(num) { return Number(num||0).toLocaleString("pt-BR"); }
+    function escapeHtml(value) {
+        return String(value ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
+    }
     function parseNum(val) {
         if (!val) return 0;
         if (typeof val === 'number') return val;
@@ -1280,11 +1283,11 @@ body:not(.auth-locked) #auth-gate { display: none; }
                     const pct = popTotal > 0 ? (popApta / popTotal) * 100 : 0;
 
                     layer.bindPopup(`
-                        <div class="pop-title">Setor Censitário ${setor}</div>
+                        <div class="pop-title">Setor Censitário ${escapeHtml(setor)}</div>
 
                         <div class="pop-row">
                             <span>Bairro IBGE</span>
-                            <strong>${bairroIBGE}</strong>
+                            <strong>${escapeHtml(bairroIBGE)}</strong>
                         </div>
 
                         <div class="pop-highlight">
@@ -1342,7 +1345,7 @@ body:not(.auth-locked) #auth-gate { display: none; }
 
                 // Plota Ponto Laranja no mapa IBGE para servir de gatilho pro Raio
                 const mkIBGE = L.circleMarker(latlng, {radius: 5, fillColor: "#f59e0b", color: "#fff", weight: 2, fillOpacity: 1, zIndexOffset: 1000}).addTo(mapIBGE);
-                mkIBGE.bindTooltip(`<b>${nomeLoc}</b><br><small>Clique para calcular Raio</small>`);
+                mkIBGE.bindTooltip(`<b>${escapeHtml(nomeLoc)}</b><br><small>Clique para calcular Raio</small>`);
                 mkIBGE.on('click', () => abrirBuffer(latlng, nomeLoc));
             });
 
@@ -1385,9 +1388,9 @@ body:not(.auth-locked) #auth-gate { display: none; }
                 const mk = L.circleMarker(d.latlng, { radius: Math.max(6, Math.min(22, 5+d.eleitores/350)), fillColor: "#2563eb", color: "#fff", weight: 2, fillOpacity: 0.85 });
                 mk.nomeRef = d.nome;
                 mk.bindPopup(`
-                    <div class="pop-title">${d.nome}</div>
-                    <div class="pop-row"><span>Bairro</span><strong>${d.bairro}</strong></div>
-                    <div class="pop-row"><span>Zona</span><strong>${d.zona}</strong></div>
+                    <div class="pop-title">${escapeHtml(d.nome)}</div>
+                    <div class="pop-row"><span>Bairro</span><strong>${escapeHtml(d.bairro)}</strong></div>
+                    <div class="pop-row"><span>Zona</span><strong>${escapeHtml(d.zona)}</strong></div>
                     <div class="pop-highlight" style="background:#eff6ff;"><span>Eleitores (TRE)</span><strong style="color:#2563eb;">${format(d.eleitores)}</strong></div>
                 `);
                 camadaLocaisTRE.addLayer(mk);
@@ -1398,12 +1401,12 @@ body:not(.auth-locked) #auth-gate { display: none; }
 
         const htmlArr = Object.entries(distEl).sort((a,b)=>b[1]-a[1]).map(([b, total]) => {
             const ls = distLoc[b].sort((a,b)=>b.eleitores - a.eleitores).map(l => 
-                `<div class="sub-item" onclick="event.stopPropagation(); focarLocalTRE('${l.nome}')"><span>${l.nome}</span><strong>${format(l.eleitores)}</strong></div>`
+                `<div class="sub-item" onclick="event.stopPropagation(); focarLocalTRE(decodeURIComponent('${encodeURIComponent(l.nome)}'))"><span>${escapeHtml(l.nome)}</span><strong>${format(l.eleitores)}</strong></div>`
             ).join('');
             const pCenso = Math.round(obterPopulacaoBairro(b));
             return `
-                <div class="list-item" onclick="focarBairroTRE('${b}', this)">
-                    <div style="display:flex; justify-content:space-between;"><span class="item-title">${b}</span></div>
+                <div class="list-item" onclick="focarBairroTRE(decodeURIComponent('${encodeURIComponent(b)}'), this)">
+                    <div style="display:flex; justify-content:space-between;"><span class="item-title">${escapeHtml(b)}</span></div>
                     <div class="item-badges"><span class="badge purple">${format(pCenso)} pop. apta 2026</span><span class="badge blue">${format(total)} el.</span></div>
                     <div class="sub-list">${ls}</div>
                 </div>
@@ -1832,7 +1835,7 @@ body:not(.auth-locked) #auth-gate { display: none; }
     const supabaseClient = supabase.createClient(
         SUPABASE_URL,
         SUPABASE_PUBLISHABLE_KEY,
-        { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
+        { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce" } }
     );
 
     let atlasInicializado = false;
