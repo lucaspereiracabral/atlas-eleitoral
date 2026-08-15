@@ -1,0 +1,22 @@
+name: Run Mobile UX Patch
+on:
+  push:
+    paths:
+      - 'scripts/patch_mobile_ux.py'
+      - '.github/workflows/run-mobile-ux-patch.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply patch
+        run: python scripts/patch_mobile_ux.py
+      - name: Commit changes
+        run: |
+          git config user.name "GeoCode"
+          git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
+          git add analytics.js analytics.css index.html
+          git commit -m "Refine mobile maps and move chart labels outside bars" || exit 0
+          git push
