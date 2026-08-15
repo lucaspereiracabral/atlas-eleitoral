@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -106,45 +107,92 @@
         }
 
         #sidebar-bairros {
-            width: 350px;
+            width: 380px;
             background: var(--card-bg);
             border: 1px solid var(--border-color);
             border-radius: 6px;
             padding: 15px;
             overflow-y: auto;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 6px;
         }
 
         .sidebar-title {
             font-size: 0.95rem;
             font-weight: 600;
             color: var(--primary-color);
-            margin-bottom: 12px;
             text-transform: uppercase;
-            border-bottom: 2px solid var(--border-color);
-            padding-bottom: 6px;
+        }
+
+        .btn-reset {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .btn-reset:hover {
+            background: #e2e8f0;
         }
 
         .bairro-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 10px;
+            padding: 10px;
             border-bottom: 1px solid var(--border-color);
-            font-size: 0.85rem;
+            cursor: pointer;
+            transition: background 0.2s;
         }
 
         .bairro-item:hover {
             background-color: var(--bg-color);
         }
 
+        .bairro-linha {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+        }
+
         .bairro-nome {
             color: var(--text-main);
-            font-weight: 500;
+            font-weight: 600;
         }
 
         .bairro-eleitores {
             color: var(--secondary-color);
             font-weight: bold;
+        }
+
+        /* Lista interna de locais de votação ao clicar no bairro */
+        .locais-container {
+            margin-top: 8px;
+            padding-left: 10px;
+            border-left: 2px solid var(--secondary-color);
+            display: none;
+        }
+
+        .bairro-item.ativo .locais-container {
+            display: block;
+        }
+
+        .local-subitem {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+            display: flex;
+            justify-content: space-between;
         }
 
         #map {
@@ -314,8 +362,11 @@
     <div id="mapas" class="tab-content">
         <div class="map-layout">
             <div id="sidebar-bairros">
-                <div class="sidebar-title">Eleitores por Bairro</div>
-                <div id="lista-bairros-conteudo" style="font-size: 0.85rem; color: var(--text-muted);">Calculando dados espaciais...</div>
+                <div class="sidebar-header">
+                    <span class="sidebar-title">Bairros e Locais</span>
+                    <button class="btn-reset" onclick="resetarMapa()">🔄 Ver Todos</button>
+                </div>
+                <div id="lista-bairros-conteudo" style="overflow-y: auto; flex: 1;">Calculando dados espaciais...</div>
             </div>
             <div id="map"></div>
         </div>
@@ -369,10 +420,15 @@
     <!-- Bibliotecas Externas -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Plugin para exibir valores (labels) direto nas barras do Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <!-- Turf.js para Análise Espacial -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
 
     <script>
+        // Registra o plugin de labels nos gráficos
+        Chart.register(ChartDataLabels);
+
         // Lógica de Alternância das Guias (Abas)
         function mudarAba(idAba, evento) {
             const abas = document.querySelectorAll('.tab-content');
@@ -405,44 +461,45 @@
             return null;
         }
 
-        // CARREGAMENTO DOS GEODADOS (Bairros e Locais de Votação com cálculo espacial)
+        let camadaBairrosGlobal = null;
+        let camadasLocaisGrupo = L.layerGroup().addTo(map);
+        let dadosBairrosCache = null;
+        let dadosLocaisCache = null;
+
+        function resetarMapa() {
+            if (camadaBairrosGlobal) {
+                map.fitBounds(camadaBairrosGlobal.getBounds());
+            }
+            // Remove destaque visual ativo
+            document.querySelectorAll('.bairro-item').forEach(el => el.classList.remove('ativo'));
+        }
+
+        // CARREGAMENTO DOS GEODADOS
         Promise.all([
             fetch('bairros_itajai.geojson').then(res => res.json()).catch(() => null),
             fetch('locais_de_votacao_e_secoes.geojson').then(res => res.json()).catch(() => null)
         ]).then(([bairrosGeo, locaisGeo]) => {
-            
-            let eleitoresPorBairro = {};
+            dadosBairrosCache = bairrosGeo;
+            dadosLocaisCache = locaisGeo;
 
-            // 1. Processa Bairros no Mapa
+            let eleitoresPorBairro = {};
+            let locaisPorBairro = {};
+
             if (bairrosGeo) {
                 bairrosGeo.features.forEach(b => {
                     const props = b.properties || {};
                     const nomeBairro = obterValorGeo(props, ['nome', 'bairro', 'NOME', 'BAIRRO', 'nome_bairro']) || "Região";
                     eleitoresPorBairro[nomeBairro] = 0;
+                    locaisPorBairro[nomeBairro] = [];
                 });
-
-                L.geoJSON(bairrosGeo, {
-                    style: {
-                        color: '#1e3a8a',
-                        weight: 1.5,
-                        fillColor: '#0284c7',
-                        fillOpacity: 0.15
-                    },
-                    onEachFeature: (feature, layer) => {
-                        const props = feature.properties || {};
-                        const nomeBairro = obterValorGeo(props, ['nome', 'bairro', 'NOME', 'BAIRRO', 'nome_bairro']) || "Bairro";
-                        layer.bindPopup(`<b>Bairro:</b> ${nomeBairro}`);
-                    }
-                }).addTo(map);
             }
 
-            // 2. Processa Locais de Votação e Faz o Cálculo Espacial por Bairro
             if (locaisGeo) {
                 locaisGeo.features.forEach(loc => {
                     const ploc = loc.properties || {};
                     const eleitores = Number(obterValorGeo(ploc, ['TOTAL_EL_1', 'total_el_1'])) || 0;
+                    const nomeLocal = obterValorGeo(ploc, ['LOCAL_DE_1', 'local_de_1']) || "Local de Votação";
                     
-                    // Identifica bairro por intersecção turf.js ou atributo interno se houver
                     let bairroLoc = obterValorGeo(ploc, ['BAIRRO_1', 'bairro_1', 'bairro']) || "Outros";
 
                     if (bairrosGeo && loc.geometry && loc.geometry.coordinates) {
@@ -459,58 +516,123 @@
                     }
 
                     eleitoresPorBairro[bairroLoc] = (eleitoresPorBairro[bairroLoc] || 0) + eleitores;
+                    
+                    if (!locaisPorBairro[bairroLoc]) locaisPorBairro[bairroLoc] = [];
+                    locaisPorBairro[bairroLoc].push({ nome: nomeLocal, eleitores: eleitores });
                 });
 
-                // Plota os pontos de votação no mapa
-                L.geoJSON(locaisGeo, {
-                    pointToLayer: (feature, latlng) => {
-                        const p = feature.properties || {};
-                        const eleitores = Number(obterValorGeo(p, ['TOTAL_EL_1', 'total_el_1'])) || 150;
-                        return L.circleMarker(latlng, {
-                            radius: Math.max(5, Math.min(22, eleitores / 250)),
-                            fillColor: "#0284c7", color: "#ffffff", weight: 1.5, fillOpacity: 0.85
-                        });
-                    },
-                    onEachFeature: (feature, layer) => {
-                        const p = feature.properties || {};
-                        layer.bindPopup(`
-                            <div style="font-family: sans-serif; font-size: 0.9rem; line-height: 1.4;">
-                                <b style="color: #1e3a8a;">${obterValorGeo(p, ['LOCAL_DE_1', 'local_de_1']) || "Local"}</b><br>
-                                📍 ${obterValorGeo(p, ['ENDERECO_1', 'endereco_1']) || ""} - ${obterValorGeo(p, ['BAIRRO_1', 'bairro_1']) || ""}<br>
-                                👥 Total de Eleitores: <b>${obterValorGeo(p, ['TOTAL_EL_1', 'total_el_1']) || "N/A"}</b>
-                            </div>
-                        `);
-                    }
-                }).addTo(map);
+                // Plota todos os pontos de votação inicialmente
+                locaisGeo.features.forEach(feature => {
+                    const p = feature.properties || {};
+                    const eleitores = Number(obterValorGeo(p, ['TOTAL_EL_1', 'total_el_1'])) || 150;
+                    const latlng = [feature.geometry.coordinates[1], feature.geometry.coordinates[0]];
+                    
+                    const marker = L.circleMarker(latlng, {
+                        radius: Math.max(5, Math.min(22, eleitores / 250)),
+                        fillColor: "#0284c7", color: "#ffffff", weight: 1.5, fillOpacity: 0.85
+                    });
+
+                    marker.bindPopup(`
+                        <div style="font-family: sans-serif; font-size: 0.9rem; line-height: 1.4;">
+                            <b style="color: #1e3a8a;">${obterValorGeo(p, ['LOCAL_DE_1', 'local_de_1']) || "Local"}</b><br>
+                            📍 ${obterValorGeo(p, ['ENDERECO_1', 'endereco_1']) || ""} - ${obterValorGeo(p, ['BAIRRO_1', 'bairro_1']) || ""}<br>
+                            👥 Total de Eleitores: <b>${obterValorGeo(p, ['TOTAL_EL_1', 'total_el_1']) || "N/A"}</b>
+                        </div>
+                    `);
+                    camadasLocaisGrupo.addLayer(marker);
+                });
             }
 
-            // 3. Monta a Barra Lateral (Sidebar) com os Bairros e Eleitores
+            // 1. Plota Bairros no Mapa (SEM preenchimento interno)
+            if (bairrosGeo) {
+                camadaBairrosGlobal = L.geoJSON(bairrosGeo, {
+                    style: {
+                        color: '#1e3a8a',
+                        weight: 2,
+                        fillColor: 'transparent',
+                        fillOpacity: 0
+                    },
+                    onEachFeature: (feature, layer) => {
+                        const props = feature.properties || {};
+                        const nomeBairro = obterValorGeo(props, ['nome', 'bairro', 'NOME', 'BAIRRO', 'nome_bairro']) || "Bairro";
+                        layer.bindPopup(`<b>Bairro:</b> ${nomeBairro}`);
+                    }
+                }).addTo(map);
+
+                map.fitBounds(camadaBairrosGlobal.getBounds());
+            }
+
+            // 2. Monta a Barra Lateral com Bairros e sub-lista de Locais
             const containerSidebar = document.getElementById('lista-bairros-conteudo');
             let htmlBairros = "";
             
-            // Ordena os bairros por número de eleitores (do maior para o menor)
             const bairrosOrdenados = Object.entries(eleitoresPorBairro).sort((a, b) => b[1] - a[1]);
 
             bairrosOrdenados.forEach(([bairro, total]) => {
+                const locaisDoBairro = locaisPorBairro[bairro] || [];
+                let htmlLocaisSub = "";
+                locaisDoBairro.forEach(l => {
+                    htmlLocaisSub += `<div class="local-subitem"><span>• ${l.nome}</span> <span><b>${l.eleitores.toLocaleString('pt-BR')}</b></span></div>`;
+                });
+
                 htmlBairros += `
-                    <div class="bairro-item">
-                        <span class="bairro-nome">${bairro}</span>
-                        <span class="bairro-eleitores">${total.toLocaleString('pt-BR')} eleitores</span>
+                    <div class="bairro-item" onclick="focarBairro('${bairro}', this)">
+                        <div class="bairro-linha">
+                            <span class="bairro-nome">${bairro}</span>
+                            <span class="bairro-eleitores">${total.toLocaleString('pt-BR')} el.</span>
+                        </div>
+                        <div class="locais-container">
+                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--primary-color); margin-top: 4px;">Locais de Votação:</div>
+                            ${htmlLocaisSub || '<span style="font-size:0.75rem;">Nenhum local</span>'}
+                        </div>
                     </div>
                 `;
             });
 
-            containerSidebar.innerHTML = htmlBairros || "Nenhum dado de bairro encontrado.";
+            containerSidebar.innerHTML = htmlBairros || "Nenhum dado encontrado.";
         });
 
-        // DADOS CONSOLIDADOS DO ELEITORADO (2026) PARA OS GRÁFICOS
+        // Função para dar zoom no bairro clicado na lista lateral
+        window.focarBairro = function(nomeBairro, elementoHtml) {
+            // Alterna estado ativo na lista
+            document.querySelectorAll('.bairro-item').forEach(el => el.classList.remove('ativo'));
+            elementoHtml.classList.add('ativo');
+
+            if (!camadaBairrosGlobal) return;
+
+            camadaBairrosGlobal.eachLayer(layer => {
+                const props = layer.feature.properties || {};
+                const nome = obterValorGeo(props, ['nome', 'bairro', 'NOME', 'BAIRRO', 'nome_bairro']);
+                if (nome && nome.toLowerCase() === nomeBairro.toLowerCase()) {
+                    map.fitBounds(layer.getBounds(), { padding: [30, 30], maxZoom: 15 });
+                    layer.openPopup();
+                }
+            });
+        };
+
+        // DADOS CONSOLIDADOS DO ELEITORADO (2026) PARA OS GRÁFICOS COM LABELS
+        const configComumOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                datalabels: {
+                    color: '#1e293b',
+                    anchor: 'end',
+                    align: 'end',
+                    font: { weight: 'bold', size: 11 },
+                    formatter: (value) => value.toLocaleString('pt-BR')
+                }
+            }
+        };
+
         new Chart(document.getElementById('chartGenero'), {
             type: 'bar',
             data: {
                 labels: ['Feminino', 'Masculino'],
                 datasets: [{ data: [96639, 85485], backgroundColor: ['#0284c7', '#1e3a8a'], borderRadius: 4 }]
             },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            options: configComumOptions
         });
 
         new Chart(document.getElementById('chartTipoVoto'), {
@@ -519,33 +641,43 @@
                 labels: ['Voto Obrigatório', 'Voto Facultativo'],
                 datasets: [{ data: [167134, 14990], backgroundColor: ['#1e3a8a', '#38bdf8'] }]
             },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    datalabels: {
+                        color: '#ffffff',
+                        font: { weight: 'bold', size: 12 },
+                        formatter: (value) => value.toLocaleString('pt-BR')
+                    }
+                }
+            }
         });
 
         new Chart(document.getElementById('chartEstadoCivil'), {
             type: 'bar',
             data: {
-                labels: ['Solteiro', 'Casado', 'Divorciado', 'Viúvo', 'Separado Judicialmente'],
+                labels: ['Solteiro', 'Casado', 'Divorciado', 'Viúvo', 'Separado'],
                 datasets: [{ data: [97924, 66310, 11156, 4578, 2156], backgroundColor: '#0284c7', borderRadius: 4 }]
             },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            options: configComumOptions
         });
 
         new Chart(document.getElementById('chartRaca'), {
             type: 'bar',
             data: {
-                labels: ['Branca', 'Parda', 'Preta', 'Amarela', 'Indígena', 'Não Informado'],
+                labels: ['Branca', 'Parda', 'Preta', 'Amarela', 'Indígena', 'Não Inf.'],
                 datasets: [{ data: [27870, 12596, 3419, 209, 59, 137971], backgroundColor: '#0284c7', borderRadius: 4 }]
             },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            options: configComumOptions
         });
 
         new Chart(document.getElementById('chartInstrucao'), {
             type: 'bar',
             data: {
                 labels: [
-                    'Ensino Médio Completo', 'Superior Completo', 'Ensino Médio Incompleto', 
-                    'Ensino Fundamental Incompleto', 'Superior Incompleto', 'Ensino Fundamental Completo', 
+                    'Ensino Médio Comp.', 'Superior Comp.', 'Ensino Médio Incomp.', 
+                    'Ensino Fund. Incomp.', 'Superior Incomp.', 'Ensino Fund. Comp.', 
                     'Lê e Escreve', 'Analfabeto'
                 ],
                 datasets: [{ 
@@ -555,26 +687,41 @@
                     borderRadius: 4
                 }]
             },
-            options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    datalabels: {
+                        color: '#1e293b',
+                        anchor: 'end',
+                        align: 'right',
+                        font: { weight: 'bold', size: 10 },
+                        formatter: (value) => value.toLocaleString('pt-BR')
+                    }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { display: false } }
+                }
+            }
         });
 
         new Chart(document.getElementById('chartFaixaEtaria'), {
             type: 'bar',
             data: {
                 labels: [
-                    '16 anos', '17 anos', '18 anos', '19 anos', '20 anos', '21 a 24 anos', 
-                    '25 a 29 anos', '30 a 34 anos', '35 a 39 anos', '40 a 44 anos', '45 a 49 anos', 
-                    '50 a 54 anos', '55 a 59 anos', '60 a 64 anos', '65 a 69 anos', '70 a 74 anos', 
-                    '75 a 79 anos', '80 a 84 anos', '85 a 89 anos', '90 a 94 anos', '95 a 99 anos', '100 anos ou mais'
+                    '16 a 20 anos', '21 a 29 anos', '30 a 39 anos', '40 a 49 anos', 
+                    '50 a 59 anos', '60 a 69 anos', '70 a 79 anos', '80+ anos'
                 ],
                 datasets: [{ 
-                    label: 'Eleitores por Faixa Etária', 
-                    data: [425, 785, 2053, 2606, 2909, 12865, 17913, 19619, 20550, 20960, 19051, 14969, 13167, 12055, 9388, 6759, 3957, 1375, 541, 138, 34, 5], 
+                    label: 'Eleitores', 
+                    data: [8722, 30778, 40169, 40011, 28136, 21443, 10716, 2103], 
                     backgroundColor: '#0284c7',
                     borderRadius: 4
                 }]
             },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            options: configComumOptions
         });
     </script>
 </body>
