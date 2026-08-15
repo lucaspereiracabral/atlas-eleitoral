@@ -159,6 +159,32 @@
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--blue); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
+
+        /* RESPONSIVIDADE */
+        @media (max-width: 980px) {
+            header { padding: 0 16px; }
+            .brand-text span { display: none; }
+            nav { overflow-x: auto; }
+            .nav-btn { white-space: nowrap; padding: 0 10px; font-size: 12px; }
+            .map-layout { flex-direction: column; height: auto; min-height: calc(100vh - 70px); }
+            .sidebar { width: 100%; min-width: 0; max-height: 42vh; }
+            .map-container { min-height: 55vh; }
+            .charts-grid { grid-template-columns: 1fr; }
+            .chart-card.full { grid-column: auto; }
+        }
+
+        @media (max-width: 640px) {
+            header { height: auto; min-height: 70px; flex-direction: column; align-items: stretch; gap: 8px; padding-top: 10px; }
+            .brand { justify-content: center; }
+            nav { height: 46px; justify-content: flex-start; }
+            .tab-content { height: calc(100vh - 116px); }
+            .map-layout { padding: 10px; gap: 10px; }
+            .container, .charts-container { padding: 20px 14px; }
+            .hero { padding: 28px 22px; }
+            .hero h2 { font-size: 25px; }
+            .charts-header h2 { font-size: 23px; }
+        }
+
     </style>
 </head>
 
@@ -174,7 +200,7 @@
 <!-- HEADER -->
 <header>
     <div class="brand">
-        <img id="atlasLogo" class="brand-logo" src="atlas logo.png" alt="Atlas" onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='flex';">
+        <img id="atlasLogo" class="brand-logo" src="atlas%20logo.png" alt="Atlas" onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='flex';">
         <div id="logoFallback" class="brand-logo-fallback" style="display:none;">AT</div>
         <div class="brand-text">
             <h1>Atlas Eleitoral de Itajaí</h1>
@@ -291,7 +317,7 @@
         <div class="charts-grid">
             <div class="chart-card full">
                 <div class="chart-title">Comparativo: População (IBGE) vs Eleitorado (TRE) por Bairro</div>
-                <div class="canvas-wrapper large"><canvas id="chartBairros"></canvas></div>
+                <div id="bairroChartContainer" class="canvas-wrapper large"><canvas id="chartBairros"></canvas></div>
             </div>
             <div class="chart-card">
                 <div class="chart-title">Gênero do Eleitorado</div>
@@ -514,7 +540,7 @@
         const txt = document.getElementById("buscaLocal").value.toLowerCase();
         const z = document.getElementById("filtroZona").value;
         
-        camadasLocaisGrupo.clearLayers();
+        camadaLocaisTRE.clearLayers();
         const distEl = {}; const distLoc = {};
         let tLoc = 0; let tEl = 0;
 
@@ -533,7 +559,7 @@
                     <div class="pop-row"><span>Zona</span><strong>${d.zona}</strong></div>
                     <div class="pop-highlight" style="background:#eff6ff;"><span>Eleitores (TRE)</span><strong style="color:#2563eb;">${format(d.eleitores)}</strong></div>
                 `);
-                camadasLocaisGrupo.addLayer(mk);
+                camadaLocaisTRE.addLayer(mk);
             }
         });
 
@@ -576,7 +602,7 @@
     }
 
     function focarLocalTRE(n) {
-        camadasLocaisGrupo.eachLayer(l => {
+        camadaLocaisTRE.eachLayer(l => {
             if(l.nomeRef === n) { mapTRE.setView(l.getLatLng(), 17); setTimeout(()=>l.openPopup(),300); }
         });
     }
@@ -641,7 +667,11 @@
         const cfg = { responsive:true, maintainAspectRatio:false, plugins: { legend:{display:false}, datalabels:{color:'#334155', font:{weight:'bold', size:10}, formatter: v=>format(v)} }, scales:{ x:{grid:{display:false}}, y:{grid:{display:false}} } };
 
         // GRÁFICO COMPARATIVO BAIRROS
-        const keys = Object.keys(elPorBairro).sort((a,b)=>elPorBairro[b]-elPorBairro[a]);
+        const keys = Array.from(
+            new Set([...Object.keys(popPorBairro), ...Object.keys(elPorBairro)])
+        )
+        .filter(k => k && k !== "Outros")
+        .sort((a,b) => (elPorBairro[b]||0) - (elPorBairro[a]||0));
         const dPop = []; const dEl = [];
         keys.forEach(k => { dPop.push(popPorBairro[k]||0); dEl.push(elPorBairro[k]||0); });
         
