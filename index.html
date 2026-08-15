@@ -158,6 +158,11 @@
             background-color: var(--bg-color);
         }
 
+        .bairro-item.ativo {
+            background-color: #f0f9ff;
+            border-left: 4px solid var(--secondary-color);
+        }
+
         .bairro-linha {
             display: flex;
             justify-content: space-between;
@@ -177,7 +182,7 @@
         /* Lista interna de locais de votação ao clicar no bairro */
         .locais-container {
             margin-top: 8px;
-            padding-left: 10px;
+            padding-left: 5px;
             border-left: 2px solid var(--secondary-color);
             display: none;
         }
@@ -188,10 +193,17 @@
 
         .local-subitem {
             font-size: 0.78rem;
-            color: var(--text-muted);
+            color: var(--primary-color);
             margin-top: 4px;
             display: flex;
             justify-content: space-between;
+            padding: 6px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .local-subitem:hover {
+            background-color: rgba(2, 132, 199, 0.1);
         }
 
         #map {
@@ -442,7 +454,7 @@
             if (idAba === 'mapas') {
                 setTimeout(() => { 
                     map.invalidateSize(); 
-                    if (camadaBairrosGlobal) {
+                    if (!document.querySelector('.bairro-item.ativo')) {
                         map.setView([-26.91, -48.66], 13);
                     }
                 }, 100);
@@ -468,9 +480,17 @@
         let camadaBairrosGlobal = null;
         let camadasLocaisGrupo = L.layerGroup().addTo(map);
 
+        // Resetar Mapa para a visão de Itajaí
         function resetarMapa() {
             map.setView([-26.91, -48.66], 13);
             document.querySelectorAll('.bairro-item').forEach(el => el.classList.remove('ativo'));
+            
+            // Remove o destaque dos polígonos
+            if (camadaBairrosGlobal) {
+                camadaBairrosGlobal.eachLayer(layer => {
+                    layer.setStyle({ color: '#000000', weight: 1, fillColor: 'transparent', fillOpacity: 0 });
+                });
+            }
         }
 
         // CARREGAMENTO DOS GEODADOS
@@ -523,7 +543,7 @@
                     locaisPorBairro[bairro].sort((a, b) => b.eleitores - a.eleitores);
                 }
 
-                // Plota todos os pontos de votação inicialmente
+                // Plota todos os pontos de votação
                 locaisGeo.features.forEach(feature => {
                     const p = feature.properties || {};
                     const eleitores = Number(obterValorGeo(p, ['TOTAL_EL_1', 'total_el_1'])) || 150;
@@ -541,28 +561,26 @@
                             👥 Total de Eleitores: <b>${obterValorGeo(p, ['TOTAL_EL_1', 'total_el_1']) || "N/A"}</b>
                         </div>
                     `);
+                    
+                    // Adiciona um atributo para buscar depois pelo nome
+                    marker.nomeLocal = obterValorGeo(p, ['LOCAL_DE_1', 'local_de_1']);
                     camadasLocaisGrupo.addLayer(marker);
                 });
             }
 
-            // 1. Plota Bairros no Mapa (SEM preenchimento e com contornos mais finos weight: 1)
+            // 1. Plota Bairros no Mapa (contornos pretos e mais finos, SEM pop-up)
             if (bairrosGeo) {
                 camadaBairrosGlobal = L.geoJSON(bairrosGeo, {
                     style: {
-                        color: '#1e3a8a',
-                        weight: 1,
+                        color: '#000000', // Contorno preto
+                        weight: 1, // Mais fino
                         fillColor: 'transparent',
                         fillOpacity: 0
-                    },
-                    onEachFeature: (feature, layer) => {
-                        const props = feature.properties || {};
-                        const nomeBairro = obterValorGeo(props, ['nome', 'bairro', 'NOME', 'BAIRRO', 'nome_bairro']) || "Bairro";
-                        layer.bindPopup(`<b>Bairro:</b> ${nomeBairro}`);
                     }
                 }).addTo(map);
             }
 
-            // 2. Monta a Barra Lateral com Bairros e sub-lista de Locais ordenada
+            // 2. Monta a Barra Lateral com Bairros e sub-lista de Locais Clicáveis
             const containerSidebar = document.getElementById('lista-bairros-conteudo');
             let htmlBairros = "";
             
@@ -572,7 +590,13 @@
                 const locaisDoBairro = locaisPorBairro[bairro] || [];
                 let htmlLocaisSub = "";
                 locaisDoBairro.forEach(l => {
-                    htmlLocaisSub += `<div class="local-subitem"><span>• ${l.nome}</span> <span><b>${l.eleitores.toLocaleString('pt-BR')}</b></span></div>`;
+                    // Item clicável que dá zoom no local
+                    htmlLocaisSub += `
+                        <div class="local-subitem" onclick="event.stopPropagation(); focarLocal('${l.nome}')">
+                            <span style="flex:1; padding-right:10px;">• <u>${l.nome}</u></span> 
+                            <span><b>${l.eleitores.toLocaleString('pt-BR')}</b></span>
+                        </div>
+                    `;
                 });
 
                 htmlBairros += `
@@ -582,7 +606,7 @@
                             <span class="bairro-eleitores">${total.toLocaleString('pt-BR')} el.</span>
                         </div>
                         <div class="locais-container">
-                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--primary-color); margin-top: 4px;">Locais de Votação (por eleitores):</div>
+                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-top: 4px; margin-bottom: 6px;">Locais de Votação (por eleitores):</div>
                             ${htmlLocaisSub || '<span style="font-size:0.75rem;">Nenhum local</span>'}
                         </div>
                     </div>
@@ -592,7 +616,7 @@
             containerSidebar.innerHTML = htmlBairros || "Nenhum dado encontrado.";
         });
 
-        // Função para dar zoom exato no bairro clicado
+        // Focar e destacar Bairro
         window.focarBairro = function(nomeBairro, elementoHtml) {
             document.querySelectorAll('.bairro-item').forEach(el => el.classList.remove('ativo'));
             elementoHtml.classList.add('ativo');
@@ -600,10 +624,27 @@
             if (!camadaBairrosGlobal) return;
 
             camadaBairrosGlobal.eachLayer(layer => {
+                // Reseta estilo padrão
+                layer.setStyle({ color: '#000000', weight: 1, fillColor: 'transparent', fillOpacity: 0 });
+                
                 const props = layer.feature.properties || {};
                 const nome = obterValorGeo(props, ['nome', 'bairro', 'NOME', 'BAIRRO', 'nome_bairro']);
+                
+                // Aplica destaque se for o bairro clicado
                 if (nome && nome.toLowerCase() === nomeBairro.toLowerCase()) {
+                    layer.setStyle({ color: '#1e3a8a', weight: 2, fillColor: '#0284c7', fillOpacity: 0.15 });
                     map.fitBounds(layer.getBounds(), { padding: [40, 40], maxZoom: 15 });
+                }
+            });
+        };
+
+        // Focar no Local de Votação
+        window.focarLocal = function(nomeDoLocalProcurado) {
+            if (!camadasLocaisGrupo) return;
+            
+            camadasLocaisGrupo.eachLayer(layer => {
+                if (layer.nomeLocal && layer.nomeLocal === nomeDoLocalProcurado) {
+                    map.setView(layer.getLatLng(), 17); // Zoom bem próximo ao local
                     layer.openPopup();
                 }
             });
@@ -634,23 +675,14 @@
             options: configComumOptions
         });
 
+        // Tipo de Voto convertido para Gráfico de Barras
         new Chart(document.getElementById('chartTipoVoto'), {
-            type: 'doughnut',
+            type: 'bar',
             data: {
-                labels: ['Voto Obrigatório', 'Voto Facultativo'],
-                datasets: [{ data: [167134, 14990], backgroundColor: ['#1e3a8a', '#38bdf8'] }]
+                labels: ['Obrigatório', 'Facultativo'],
+                datasets: [{ data: [167134, 14990], backgroundColor: ['#1e3a8a', '#38bdf8'], borderRadius: 4 }]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    datalabels: {
-                        color: '#ffffff',
-                        font: { weight: 'bold', size: 12 },
-                        formatter: (value) => value.toLocaleString('pt-BR')
-                    }
-                }
-            }
+            options: configComumOptions
         });
 
         new Chart(document.getElementById('chartEstadoCivil'), {
