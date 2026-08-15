@@ -177,7 +177,7 @@
         .chart-container {
             position: relative;
             flex: 1;
-            min-height: 450px; /* Aumentado para caber os locais de votação */
+            min-height: 500px; /* Altura ideal para exibir os maiores colégios eleitorais */
         }
 
         @media (max-width: 768.00px) {
@@ -235,7 +235,7 @@
     <div id="graficos" class="tab-content">
         <div class="charts-grid">
             <div class="chart-box">
-                <div class="chart-title">Eleitores por Local de Votação (Maiores Eleitorados)</div>
+                <div class="chart-title">Maiores Locais de Votação por Número de Eleitores</div>
                 <div class="chart-container">
                     <canvas id="graficoLocaisVotacao"></canvas>
                 </div>
@@ -272,7 +272,7 @@
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
-        // Função auxiliar para buscar propriedades ignorando maiúsculas/minúsculas
+        // Função auxiliar robusta para ler propriedades ignorando maiúsculas/minúsculas
         function obterValor(props, chaves) {
             for (let chave of chaves) {
                 for (let p in props) {
@@ -284,9 +284,7 @@
             return null;
         }
 
-        let graficoInstancia = null;
-
-        // Carregamento do arquivo GeoJSON de Locais de Votação (Mapa e Gráfico)
+        // Carregamento do arquivo GeoJSON de Locais de Votação para o Mapa e Gráfico
         fetch('locais_de_votacao_e_secoes.geojson')
             .then(resposta => {
                 if (!resposta.ok) throw new Error("Erro HTTP: " + resposta.status);
@@ -295,7 +293,7 @@
             .then(dadosGeoJSON => {
                 console.log("GeoJSON carregado com sucesso!", dadosGeoJSON);
 
-                // 1. CARREGAMENTO DOS PONTOS NO MAPA
+                // 1. PLOTAGEM NO MAPA
                 L.geoJSON(dadosGeoJSON, {
                     pointToLayer: function (feature, latlng) {
                         const props = feature.properties || {};
@@ -331,7 +329,7 @@
                     }
                 }).addTo(map);
 
-                // 2. PROCESSAMENTO DOS DADOS PARA O GRÁFICO
+                // 2. EXTRAÇÃO E ORDENAÇÃO DOS DADOS PARA O GRÁFICO DE BARRAS
                 const listaLocais = dadosGeoJSON.features.map(f => {
                     const p = f.properties || {};
                     return {
@@ -340,16 +338,18 @@
                     };
                 });
 
-                // Ordena do maior para o menor número de eleitores e pega os top 10 para o gráfico não ficar poluído
+                // Ordena do maior para o menor com base no número de eleitores
                 listaLocais.sort((a, b) => b.eleitores - a.eleitores);
-                const topLocais = listaLocais.slice(0, 10);
+                
+                // Seleciona os 12 maiores locais para manter a visualização limpa
+                const topLocais = listaLocais.slice(0, 12);
 
                 const nomes = topLocais.map(l => l.nome);
                 const valores = topLocais.map(l => l.eleitores);
 
-                // 3. RENDERIZAÇÃO DO GRÁFICO COM CHART.JS
+                // 3. RENDERIZAÇÃO DO GRÁFICO DE BARRAS HORIZONTAIS
                 const ctx = document.getElementById('graficoLocaisVotacao').getContext('2d');
-                graficoInstancia = new Chart(ctx, {
+                new Chart(ctx, {
                     type: 'bar',
                     data: {
                         labels: nomes,
@@ -361,7 +361,7 @@
                         }]
                     },
                     options: {
-                        indexAxis: 'y', // Gráfico de barras horizontais para facilitar a leitura dos nomes das escolas
+                        indexAxis: 'y', // Deixa as barras na horizontal para facilitar a leitura dos nomes das escolas
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: {
@@ -381,7 +381,7 @@
 
             })
             .catch(erro => {
-                console.error("Erro ao carregar o GeoJSON para os gráficos:", erro);
+                console.error("Erro ao carregar o GeoJSON para o gráfico:", erro);
             });
     </script>
 </body>
