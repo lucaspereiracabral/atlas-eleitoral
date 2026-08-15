@@ -220,7 +220,7 @@
     <div class="container">
         <div class="hero">
             <h2>Bem-vindo ao Atlas Eleitoral</h2>
-            <p>Uma plataforma avançada que cruza a base oficial de Locais de Votação (TRE-SC 2026) com a dados dos Setores Censitários do IBGE Censo 2022, com estimativa da população em idade eleitoral. Ferramenta desenhada para análise de precisão do território de Itajaí.</p>
+            <p>Uma plataforma avançada que cruza a base oficial de Locais de Votação (TRE-SC 2026) com a dados dos Setores Censitários do IBGE Censo 2022, com estimativa da população apta a votar em 2026. Ferramenta desenhada para análise de precisão do território de Itajaí.</p>
         </div>
 
         <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px 15px;margin:-12px 0 24px;font-size:11px;color:#9a3412;line-height:1.5;">
@@ -324,7 +324,7 @@
         </div>
         <div class="charts-grid">
             <div class="chart-card full">
-                <div class="chart-title">Comparativo: População apta a votar em 2026 (estimativa IBGE) vs Eleitorado (TRE) por Bairro</div>
+                <div class="chart-title">Eleitores por Bairro</div>
                 <div id="bairroChartContainer" class="canvas-wrapper large"><canvas id="chartBairros"></canvas></div>
             </div>
             <div class="chart-card">
@@ -393,7 +393,7 @@
     }
 
     /*
-     * Estimativa da população em idade eleitoral (16 anos ou mais).
+     * Estimativa da população apta a votar em 2026 (16 anos ou mais).
      *
      * O Censo 2022 desta base fornece:
      * V01034 = 15 a 19 anos
@@ -514,6 +514,165 @@
         return Number(
             popPorBairroNormalizado[chave] || 0
         );
+    }
+
+    /*
+     * Retorna o nome municipal equivalente ao NM_BAIRRO do IBGE.
+     * Ex.: "São Vicente" -> "SÃO VICENTE" / nome oficial da camada municipal.
+     */
+    function resolverNomeBairroIBGE(nomeIBGE) {
+        if(!nomeIBGE) return null;
+
+        const chave = normalizarNome(nomeIBGE);
+
+        return bairroCanonicoPorNome[chave] || null;
+    }
+
+    /*
+     * Agregação principal da população apta 2026 por bairro.
+     *
+     * PRIORIDADE 1:
+     * usa NM_BAIRRO existente no próprio setor censitário.
+     *
+     * PRIORIDADE 2:
+     * se NM_BAIRRO estiver vazio ou não casar com a camada municipal,
+     * distribui espacialmente o setor pelas amostras.
+     *
+     * Isso permite aproveitar diretamente os atributos do GeoJSON que
+     * já está funcionando no Mapa Censo IBGE.
+     */
+    function agregarPopulacaoAptaPorBairro() {
+
+        popPorBairro = {};
+
+        // Inicializa todos os bairros municipais com zero.
+        if(geoBairros && Array.isArray(geoBairros.features)) {
+            geoBairros.features.forEach(b => {
+                const nome = getProp(
+                    b.properties || {},
+                    ["nome_1", "nome", "bairro", "NOME_1", "NOME", "BAIRRO", "nome_bairro"]
+                );
+
+                if(nome) popPorBairro[nome] = 0;
+            });
+        }
+
+        if(!geoSetores || !Array.isArray(geoSetores.features)) {
+            reconstruirIndicePopulacaoBairros();
+            return;
+        }
+
+        let usadosPorNomeIBGE = 0;
+        let usadosPorAmostragem = 0;
+        let enviadosOutros = 0;
+
+        geoSetores.features.forEach(setor => {
+
+            const props = setor.properties || {};
+            const popApta = calcularPopulacaoApta2026(props);
+
+            if(popApta <= 0) return;
+
+            /*
+             * PRIMEIRA TENTATIVA:
+             * usa diretamente NM_BAIRRO da base do Censo.
+             */
+            const nomeIBGE = getProp(
+                props,
+                ["nm_bairro", "NM_BAIRRO"]
+            );
+
+            const bairroMunicipal =
+                resolverNomeBairroIBGE(nomeIBGE);
+
+            if(bairroMunicipal) {
+
+                popPorBairro[bairroMunicipal] =
+                    (popPorBairro[bairroMunicipal] || 0) +
+                    popApta;
+
+                usadosPorNomeIBGE++;
+
+                return;
+            }
+
+            /*
+             * FALLBACK ESPACIAL:
+             * distribui o setor entre bairros quando não houver
+             * correspondência válida no NM_BAIRRO.
+             */
+            const distribuicao =
+                distribuirSetorEntreBairros(
+                    setor,
+                    popApta
+                );
+
+            if(
+                distribuicao &&
+                distribuicao.length
+            ) {
+
+                distribuicao.forEach(parte => {
+
+                    const nome =
+                        parte.bairro || "Outros";
+
+                    popPorBairro[nome] =
+                        (popPorBairro[nome] || 0) +
+                        Number(parte.populacao || 0);
+
+                    if(nome === "Outros") {
+                        enviadosOutros++;
+                    }
+                });
+
+                usadosPorAmostragem++;
+
+            } else {
+
+                popPorBairro["Outros"] =
+                    (popPorBairro["Outros"] || 0) +
+                    popApta;
+
+                enviadosOutros++;
+            }
+        });
+
+        reconstruirIndicePopulacaoBairros();
+
+        console.group("POPULAÇÃO APTA 2026 POR BAIRRO");
+
+        console.log(
+            "Setores associados diretamente por NM_BAIRRO:",
+            usadosPorNomeIBGE
+        );
+
+        console.log(
+            "Setores associados por análise espacial:",
+            usadosPorAmostragem
+        );
+
+        console.log(
+            "Setores/partes em Outros:",
+            enviadosOutros
+        );
+
+        console.table(
+            Object.entries(popPorBairro)
+                .filter(([bairro]) => bairro !== "Outros")
+                .map(([bairro, populacao]) => ({
+                    bairro,
+                    populacaoApta2026:
+                        Math.round(populacao || 0)
+                }))
+                .sort(
+                    (a,b) =>
+                        b.populacaoApta2026 -
+                        a.populacaoApta2026
+                )
+        );
+
+        console.groupEnd();
     }
 
     function prepararIndiceBairros() {
@@ -877,7 +1036,7 @@
             });
         }
 
-        // PROCESSA SETORES IBGE - POPULAÇÃO ESTIMADA 16+
+        // PROCESSA SETORES IBGE - POPULAÇÃO APTA A VOTAR EM 2026
         if(geoSetores && Array.isArray(geoSetores.features)) {
 
             totalMoradoresIBGE = 0;
@@ -896,19 +1055,15 @@
 
                 if(pop16Mais > 0) setoresValidos++;
 
-                const distribuicao = distribuirSetorEntreBairros(s, pop16Mais);
 
-                distribuicao.forEach(parte => {
-                    popPorBairro[parte.bairro] =
-                        (popPorBairro[parte.bairro] || 0) + parte.populacao;
-                });
             });
 
             // Como parte da faixa 15-19 é estimada, arredondamos o resultado.
             totalMoradoresIBGE = Math.round(totalMoradoresIBGE);
 
-            // Índice normalizado para cruzar nomes IBGE/TRE/município.
-            reconstruirIndicePopulacaoBairros();
+            // Agrega a população apta 2026 por bairro usando
+            // prioritariamente NM_BAIRRO do próprio GeoJSON censitário.
+            agregarPopulacaoAptaPorBairro();
 
             const kpiPop = document.getElementById("kpi-pop-home");
             if(kpiPop) kpiPop.innerText = format(totalMoradoresIBGE);
@@ -1004,7 +1159,7 @@
                 onEachFeature: function(f, layer) {
                     const p = f.properties || {};
 
-                    const pop16 = Math.round(calcularPopulacaoApta2026(p));
+                    const popApta = Math.round(calcularPopulacaoApta2026(p));
                     const popTotal = parseNum(getProp(p, ["v01006", "V01006"]));
                     const setor = getProp(p, ["cd_setor", "CD_SETOR"]) || "Não informado";
                     const bairroIBGE = getProp(p, ["nm_bairro", "NM_BAIRRO"]) || "Não informado";
@@ -1020,7 +1175,7 @@
                         </div>
 
                         <div class="pop-highlight">
-                            <span>População estimada com 16 anos ou mais</span>
+                            <span>População apta a votar em 2026</span>
                             <strong>${format(popApta)}</strong>
                         </div>
 
@@ -1136,7 +1291,7 @@
             return `
                 <div class="list-item" onclick="focarBairroTRE('${b}', this)">
                     <div style="display:flex; justify-content:space-between;"><span class="item-title">${b}</span></div>
-                    <div class="item-badges"><span class="badge purple">${format(Math.round(pCenso))} pop. apta 2026</span><span class="badge blue">${format(total)} el.</span></div>
+                    <div class="item-badges"><span class="badge purple">${format(pCenso)} pop. apta 2026</span><span class="badge blue">${format(total)} el.</span></div>
                     <div class="sub-list">${ls}</div>
                 </div>
             `;
@@ -1315,8 +1470,8 @@
         geoSetores.features
             .forEach(sec => {
 
-                const pop16 =
-                    calcularPopulacao16Mais(
+                const popApta =
+                    calcularPopulacaoApta2026(
                         sec.properties || {}
                     );
 
@@ -1439,37 +1594,105 @@
         Chart.register(ChartDataLabels);
         const cfg = { responsive:true, maintainAspectRatio:false, plugins: { legend:{display:false}, datalabels:{color:'#334155', font:{weight:'bold', size:10}, formatter: v=>format(v)} }, scales:{ x:{grid:{display:false}}, y:{grid:{display:false}} } };
 
-        // GRÁFICO COMPARATIVO BAIRROS
+        // ELEITORES POR BAIRRO - TRE
         const keys = Object.keys(elPorBairro)
-            .filter(k => k)
-            .sort((a,b) => (elPorBairro[b]||0) - (elPorBairro[a]||0));
-
-        const dPop = [];
-        const dEl = [];
-
-        keys.forEach(k => {
-            dPop.push(
-                Math.round(
-                    obterPopulacaoBairro(k)
-                )
+            .filter(k => k && k !== "Outros")
+            .sort(
+                (a,b) =>
+                    (elPorBairro[b] || 0) -
+                    (elPorBairro[a] || 0)
             );
 
-            dEl.push(
-                elPorBairro[k] || 0
-            );
-        });
-        
-        document.getElementById("bairroChartContainer").style.height = Math.max(500, keys.length*40)+"px";
-        new Chart(document.getElementById("chartBairros"), {
-            type: "bar",
-            data: { labels: keys, datasets: [
-                { label: "População apta a votar em 2026 (estimativa IBGE)", data: dPop.map(v => Math.round(v)), backgroundColor: "#8b5cf6", borderRadius: 4 },
-                { label: "Eleitores TRE", data: dEl, backgroundColor: "#2563eb", borderRadius: 4 }
-            ]},
-            options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, plugins: { legend:{display:true, position:'top'}, datalabels: {anchor:'end', align:'right', color:'#334', font:{size:9, weight:'bold'}, formatter:v=>format(v)} }, scales:{ x:{display:false}, y:{grid:{display:false}, ticks:{font:{weight:'600'}}} } }
-        });
+        const dEl = keys.map(
+            k => elPorBairro[k] || 0
+        );
 
-        
+        const bairroChartContainer =
+            document.getElementById(
+                "bairroChartContainer"
+            );
+
+        if(bairroChartContainer) {
+            bairroChartContainer.style.height =
+                Math.max(
+                    500,
+                    keys.length * 38
+                ) + "px";
+        }
+
+        new Chart(
+            document.getElementById(
+                "chartBairros"
+            ),
+            {
+                type: "bar",
+
+                data: {
+                    labels: keys,
+
+                    datasets: [{
+                        label: "Eleitores TRE",
+                        data: dEl,
+                        backgroundColor: "#2563eb",
+                        borderRadius: 5,
+                        borderSkipped: false
+                    }]
+                },
+
+                options: {
+                    indexAxis: "y",
+                    responsive: true,
+                    maintainAspectRatio: false,
+
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+
+                        datalabels: {
+                            anchor: "end",
+                            align: "right",
+                            color: "#334155",
+                            font: {
+                                size: 9,
+                                weight: "bold"
+                            },
+                            formatter:
+                                v => format(v)
+                        },
+
+                        tooltip: {
+                            callbacks: {
+                                label: ctx =>
+                                    " " +
+                                    format(ctx.raw) +
+                                    " eleitores"
+                            }
+                        }
+                    },
+
+                    scales: {
+                        x: {
+                            display: false,
+                            beginAtZero: true
+                        },
+
+                        y: {
+                            grid: {
+                                display: false
+                            },
+
+                            ticks: {
+                                font: {
+                                    weight: "600"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        );
+
         // DEMOGRÁFICOS
         new Chart(document.getElementById("chartGenero"), { type: "doughnut", data: { labels: ["Feminino", "Masculino"], datasets: [{ data: [96639, 85485], backgroundColor: ["#0ea5e9", "#1e293b"], borderWidth:0 }] }, options: { responsive:true, maintainAspectRatio:false, cutout:"65%", plugins:{ legend:{display:true, position:'bottom'}, datalabels:{color:'#fff', font:{size:12, weight:'bold'}, formatter:v=>format(v)} } } });
         new Chart(document.getElementById("chartIdade"), { type: "bar", data: { labels: ["16-20", "21-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80+"], datasets: [{ data: [8722, 30778, 40169, 40011, 28136, 21443, 10716, 2103], backgroundColor: "#2563eb", borderRadius:4 }] }, options: cfg });
