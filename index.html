@@ -224,10 +224,11 @@
         </div>
 
         <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px 15px;margin:-12px 0 24px;font-size:11px;color:#9a3412;line-height:1.5;">
-            <strong>Nota metodológica:</strong> o IBGE divulga a faixa de 15 a 19 anos de forma agrupada.
-            Para estimar a população com 16 anos ou mais, são considerados 80% da faixa de 15 a 19 anos
-            e 100% das faixas de 20 anos ou mais. O indicador representa população em idade eleitoral,
-            não o cadastro efetivo de eleitores.
+            <strong>Nota metodológica:</strong>
+            a população apta a votar em 2026 é uma estimativa construída a partir da estrutura etária do Censo 2022.
+            Considera-se 60% da faixa de 10 a 14 anos (aproximação para quem tinha 12, 13 ou 14 anos em 2022)
+            e 100% da população com 15 anos ou mais. O indicador representa uma projeção demográfica de pessoas
+            com idade potencial para votar em 2026 e não substitui o cadastro oficial de eleitores do TRE.
         </div>
 
         <div class="kpi-grid">
@@ -237,9 +238,9 @@
                 <div class="kpi-sub">aptos a votar</div>
             </div>
             <div class="kpi-card purple">
-                <div class="kpi-title">População em idade eleitoral - IBGE</div>
+                <div class="kpi-title">População apta a votar em 2026</div>
                 <div class="kpi-value" id="kpi-pop-home">...</div>
-                <div class="kpi-sub">estimativa de moradores com 16 anos ou mais • Censo 2022</div>
+                <div class="kpi-sub">estimativa por progressão etária • base Censo 2022</div>
             </div>
             <div class="kpi-card">
                 <div class="kpi-title">Locais de Votação</div>
@@ -280,7 +281,7 @@
     <div class="map-layout">
         <div class="sidebar">
             <div class="sidebar-header">
-                <h3>População em Idade Eleitoral (IBGE)</h3>
+                <h3>População apta a votar em 2026 (IBGE)</h3>
                 <p>Clique nos <b>pontos laranjas</b> (Locais de Votação) para estimar a população com 16 anos ou mais no raio selecionado.</p>
             </div>
             
@@ -293,14 +294,14 @@
                 </div>
                 <input type="range" id="buffer-slider" min="100" max="3000" step="100" value="500" oninput="atualizarBuffer()">
                 <div class="buffer-result">
-                    <span>População estimada 16+ na área</span>
+                    <span>População apta a votar em 2026 na área</span>
                     <strong id="buffer-resultado">0</strong>
                 </div>
                 <button onclick="fecharBuffer()" style="width: 100%; margin-top: 15px; padding: 10px; background: white; border: 1px solid var(--border); border-radius: 8px; font-weight: 600; cursor: pointer; color: var(--muted);">Remover Raio</button>
             </div>
 
             <div class="legend">
-                <div class="legend-title">População estimada 16+ por setor</div>
+                <div class="legend-title">População apta a votar em 2026 por setor</div>
                 <div class="legend-item"><div class="color-box" style="background:#08306b;"></div> Mais de 700 pessoas</div>
                 <div class="legend-item"><div class="color-box" style="background:#08519c;"></div> 501 a 700 pessoas</div>
                 <div class="legend-item"><div class="color-box" style="background:#2171b5;"></div> 351 a 500 pessoas</div>
@@ -323,7 +324,7 @@
         </div>
         <div class="charts-grid">
             <div class="chart-card full">
-                <div class="chart-title">Comparativo: População estimada 16+ (IBGE) vs Eleitorado (TRE) por Bairro</div>
+                <div class="chart-title">Comparativo: População apta a votar em 2026 (estimativa IBGE) vs Eleitorado (TRE) por Bairro</div>
                 <div id="bairroChartContainer" class="canvas-wrapper large"><canvas id="chartBairros"></canvas></div>
             </div>
             <div class="chart-card">
@@ -355,7 +356,7 @@
     let geoSetores = null;
     let popPorBairro = {};
     let elPorBairro = {};
-    let totalMoradoresIBGE = 0; // estimativa 16+
+    let totalMoradoresIBGE = 0; // estimativa população apta a votar em 2026
     let populacaoTotalCenso = 0;
 
     // MAPAS LEAFLET
@@ -407,8 +408,56 @@
      * Como não há uma variável separada apenas para 15 anos,
      * estimamos 16-19 como 4/5 (80%) da faixa 15-19.
      */
-    function calcularPopulacao16Mais(props) {
-        const faixa15a19 = parseNum(getProp(props, ["v01034", "V01034"]));
+    /*
+     * =========================================================
+     * POPULAÇÃO APTA A VOTAR EM 2026 EM 2026 - ESTIMATIVA
+     * =========================================================
+     *
+     * Base: Censo Demográfico 2022 - população por faixa etária.
+     *
+     * V01033 = 10 a 14 anos
+     * V01034 = 15 a 19 anos
+     * V01035 = 20 a 24 anos
+     * V01036 = 25 a 29 anos
+     * V01037 = 30 a 39 anos
+     * V01038 = 40 a 49 anos
+     * V01039 = 50 a 59 anos
+     * V01040 = 60 a 69 anos
+     * V01041 = 70 anos ou mais
+     *
+     * Objetivo:
+     * estimar, a partir da estrutura etária de 2022, a população
+     * que terá aproximadamente 16 anos ou mais em 2026.
+     *
+     * Como V01033 agrupa 10, 11, 12, 13 e 14 anos, e somente
+     * quem tinha 12, 13 ou 14 anos em 2022 terá 16+ em 2026,
+     * adotamos 3/5 = 60% dessa faixa.
+     *
+     * Toda a população que já tinha 15 anos ou mais em 2022
+     * terá 19 anos ou mais em 2026 e, portanto, entra integralmente.
+     *
+     * IMPORTANTE:
+     * esta é uma projeção demográfica simplificada por coorte.
+     * Não incorpora mortalidade, migração nem situação cadastral
+     * efetiva perante a Justiça Eleitoral.
+     */
+    function calcularPopulacaoApta2026(props) {
+
+        const faixa10a14 =
+            parseNum(
+                getProp(
+                    props,
+                    ["v01033", "V01033"]
+                )
+            );
+
+        const faixa15a19 =
+            parseNum(
+                getProp(
+                    props,
+                    ["v01034", "V01034"]
+                )
+            );
 
         const vinteMais =
             parseNum(getProp(props, ["v01035", "V01035"])) +
@@ -419,9 +468,19 @@
             parseNum(getProp(props, ["v01040", "V01040"])) +
             parseNum(getProp(props, ["v01041", "V01041"]));
 
-        const estimativa16a19 = faixa15a19 * 0.8;
+        const estimativa12a14 =
+            faixa10a14 * 0.60;
 
-        return estimativa16a19 + vinteMais;
+        return (
+            estimativa12a14 +
+            faixa15a19 +
+            vinteMais
+        );
+    }
+
+    // Compatibilidade com partes antigas do código.
+    function calcularPopulacao16Mais(props) {
+        return calcularPopulacaoApta2026(props);
     }
 
     function normalizarNome(texto) {
@@ -433,6 +492,29 @@
     }
 
     let bairroCanonicoPorNome = {};
+    let popPorBairroNormalizado = {};
+
+    function reconstruirIndicePopulacaoBairros() {
+        popPorBairroNormalizado = {};
+
+        Object.entries(popPorBairro).forEach(([bairro, populacao]) => {
+            const chave = normalizarNome(bairro);
+
+            if(!chave) return;
+
+            popPorBairroNormalizado[chave] =
+                (popPorBairroNormalizado[chave] || 0) +
+                Number(populacao || 0);
+        });
+    }
+
+    function obterPopulacaoBairro(nomeBairro) {
+        const chave = normalizarNome(nomeBairro);
+
+        return Number(
+            popPorBairroNormalizado[chave] || 0
+        );
+    }
 
     function prepararIndiceBairros() {
         bairroCanonicoPorNome = {};
@@ -442,7 +524,7 @@
         geoBairros.features.forEach(b => {
             const nome = getProp(
                 b.properties || {},
-                ["nome", "bairro", "NOME", "BAIRRO", "nome_bairro"]
+                ["nome_1", "nome", "bairro", "NOME_1", "NOME", "BAIRRO", "nome_bairro"]
             );
 
             if(nome) {
@@ -487,7 +569,7 @@
 
             b.__nomeCache = getProp(
                 b.properties || {},
-                ["nome", "bairro", "NOME", "BAIRRO", "nome_bairro"]
+                ["nome_1", "nome", "bairro", "NOME_1", "NOME", "BAIRRO", "nome_bairro"]
             ) || "Outros";
         });
     }
@@ -775,12 +857,22 @@
         prepararIndiceBairros();
         prepararBairrosEspaciais();
 
+        if(geoBairros && geoBairros.features && geoBairros.features.length) {
+            console.info(
+                "Campo de bairro municipal detectado:",
+                getProp(
+                    geoBairros.features[0].properties || {},
+                    ["nome_1", "nome", "bairro", "NOME_1", "NOME", "BAIRRO", "nome_bairro"]
+                )
+            );
+        }
+
         let zonasSet = new Set();
 
         // INICIALIZA BAIRROS
         if(geoBairros) {
             geoBairros.features.forEach(b => {
-                const nome = getProp(b.properties, ["nome", "bairro"]) || "Região";
+                const nome = getProp(b.properties, ["nome_1", "nome", "bairro", "NOME_1", "NOME", "BAIRRO", "nome_bairro"]) || "Região";
                 popPorBairro[nome] = 0; elPorBairro[nome] = 0;
             });
         }
@@ -815,15 +907,18 @@
             // Como parte da faixa 15-19 é estimada, arredondamos o resultado.
             totalMoradoresIBGE = Math.round(totalMoradoresIBGE);
 
+            // Índice normalizado para cruzar nomes IBGE/TRE/município.
+            reconstruirIndicePopulacaoBairros();
+
             const kpiPop = document.getElementById("kpi-pop-home");
             if(kpiPop) kpiPop.innerText = format(totalMoradoresIBGE);
 
-            console.info("=== CENSO 2022 - POPULAÇÃO EM IDADE ELEITORAL ===");
+            console.info("=== CENSO 2022 - POPULAÇÃO APTA A VOTAR EM 2026 ===");
             console.info("Setores carregados:", geoSetores.features.length);
-            console.info("Setores com população 16+ estimada:", setoresValidos);
+            console.info("Setores com população apta a votar estimada:", setoresValidos);
             console.info("População total V01006:", populacaoTotalCenso);
-            console.info("População estimada 16+:", totalMoradoresIBGE);
-            console.info("Método: 80% da faixa 15-19 + todas as faixas de 20 anos ou mais.");
+            console.info("População apta a votar em 2026:", totalMoradoresIBGE);
+            console.info("Método 2026: 60% da faixa 10-14 anos + 100% da população de 15 anos ou mais observada no Censo 2022.");
             console.info(
                 "População distribuída nos bairros:",
                 Math.round(
@@ -847,12 +942,12 @@
                     );
 
             console.info(
-                "CHECAGEM - total 16+ dos setores:",
+                "CHECAGEM - total apto 2026 dos setores:",
                 totalMoradoresIBGE
             );
 
             console.info(
-                "CHECAGEM - total 16+ distribuído nos bairros:",
+                "CHECAGEM - total apto 2026 distribuído nos bairros:",
                 Math.round(somaPopBairros)
             );
 
@@ -885,17 +980,17 @@
                     .sort((a,b) => b.populacao16mais - a.populacao16mais)
             );
 
-            // MAPA COROPLÉTICO: população estimada 16+ por setor.
+            // MAPA COROPLÉTICO: população apta a votar estimada por setor.
             L.geoJSON(geoSetores, {
                 style: function(f) {
-                    const pop16 = calcularPopulacao16Mais(f.properties || {});
+                    const popApta = calcularPopulacaoApta2026(f.properties || {});
 
                     const c =
-                        pop16 > 700 ? "#08306b" :
-                        pop16 > 500 ? "#08519c" :
-                        pop16 > 350 ? "#2171b5" :
-                        pop16 > 200 ? "#4292c6" :
-                        pop16 > 100 ? "#6baed6" :
+                        popApta > 700 ? "#08306b" :
+                        popApta > 500 ? "#08519c" :
+                        popApta > 350 ? "#2171b5" :
+                        popApta > 200 ? "#4292c6" :
+                        popApta > 100 ? "#6baed6" :
                                      "#9ecae1";
 
                     return {
@@ -909,12 +1004,12 @@
                 onEachFeature: function(f, layer) {
                     const p = f.properties || {};
 
-                    const pop16 = Math.round(calcularPopulacao16Mais(p));
+                    const pop16 = Math.round(calcularPopulacaoApta2026(p));
                     const popTotal = parseNum(getProp(p, ["v01006", "V01006"]));
                     const setor = getProp(p, ["cd_setor", "CD_SETOR"]) || "Não informado";
                     const bairroIBGE = getProp(p, ["nm_bairro", "NM_BAIRRO"]) || "Não informado";
 
-                    const pct = popTotal > 0 ? (pop16 / popTotal) * 100 : 0;
+                    const pct = popTotal > 0 ? (popApta / popTotal) * 100 : 0;
 
                     layer.bindPopup(`
                         <div class="pop-title">Setor Censitário ${setor}</div>
@@ -926,7 +1021,7 @@
 
                         <div class="pop-highlight">
                             <span>População estimada com 16 anos ou mais</span>
-                            <strong>${format(pop16)}</strong>
+                            <strong>${format(popApta)}</strong>
                         </div>
 
                         <div class="pop-row" style="margin-top:12px;">
@@ -935,12 +1030,12 @@
                         </div>
 
                         <div class="pop-row">
-                            <span>Percentual estimado 16+</span>
+                            <span>Percentual estimado apto 2026</span>
                             <strong>${pct.toFixed(1).replace(".", ",")}%</strong>
                         </div>
 
                         <div style="font-size:9px;color:#64748b;line-height:1.4;margin-top:10px;">
-                            Estimativa: 80% da faixa de 15 a 19 anos + população de 20 anos ou mais.
+                            Estimativa 2026: 60% da faixa de 10 a 14 anos + 100% da população de 15 anos ou mais.
                         </div>
                     `);
                 }
@@ -960,7 +1055,7 @@
                         const pt = turf.point(l.geometry.coordinates);
                         for(const b of geoBairros.features) {
                             if(turf.booleanPointInPolygon(pt, b)) {
-                                bNome = getProp(b.properties, ["nome", "bairro"]) || bNome; break;
+                                bNome = getProp(b.properties, ["nome_1", "nome", "bairro", "NOME_1", "NOME", "BAIRRO", "nome_bairro"]) || bNome; break;
                             }
                         }
                     } catch(e){}
@@ -1037,11 +1132,11 @@
             const ls = distLoc[b].sort((a,b)=>b.eleitores - a.eleitores).map(l => 
                 `<div class="sub-item" onclick="event.stopPropagation(); focarLocalTRE('${l.nome}')"><span>${l.nome}</span><strong>${format(l.eleitores)}</strong></div>`
             ).join('');
-            const pCenso = Math.round(popPorBairro[b] || 0);
+            const pCenso = Math.round(obterPopulacaoBairro(b));
             return `
                 <div class="list-item" onclick="focarBairroTRE('${b}', this)">
                     <div style="display:flex; justify-content:space-between;"><span class="item-title">${b}</span></div>
-                    <div class="item-badges"><span class="badge purple">${format(Math.round(pCenso))} pop. 16+</span><span class="badge blue">${format(total)} el.</span></div>
+                    <div class="item-badges"><span class="badge purple">${format(Math.round(pCenso))} pop. apta 2026</span><span class="badge blue">${format(total)} el.</span></div>
                     <div class="sub-list">${ls}</div>
                 </div>
             `;
@@ -1061,7 +1156,14 @@
         if(!camadaBairrosTRE) return;
         camadaBairrosTRE.eachLayer(l => {
             l.setStyle({color: "#334155", weight: 1, fillOpacity: 0});
-            if(getProp(l.feature.properties, ["nome", "bairro"]) === n) {
+            if(
+                normalizarNome(
+                    getProp(
+                        l.feature.properties,
+                        ["nome_1", "nome", "bairro", "NOME_1", "NOME", "BAIRRO", "nome_bairro"]
+                    )
+                ) === normalizarNome(n)
+            ) {
                 l.setStyle({color: "#2563eb", weight: 3, fillColor: "#38bdf8", fillOpacity: 0.15});
                 l.bringToFront();
                 mapTRE.fitBounds(l.getBounds(), {padding: [50,50]});
@@ -1218,7 +1320,7 @@
                         sec.properties || {}
                     );
 
-                if(pop16 <= 0) {
+                if(popApta <= 0) {
                     return;
                 }
 
@@ -1263,7 +1365,7 @@
                         amostras.length;
 
                     populacaoBuffer +=
-                        pop16 *
+                        popApta *
                         proporcao;
 
                     setoresComContribuicao++;
@@ -1286,7 +1388,7 @@
          * Diagnóstico para conferência no F12.
          */
         console.group(
-            "BUFFER POPULAÇÃO 16+"
+            "BUFFER POPULAÇÃO APTA 2026"
         );
 
         console.log(
@@ -1323,7 +1425,7 @@
         );
 
         console.log(
-            "População estimada 16+:",
+            "População apta a votar em 2026:",
             resultado
         );
 
@@ -1338,19 +1440,30 @@
         const cfg = { responsive:true, maintainAspectRatio:false, plugins: { legend:{display:false}, datalabels:{color:'#334155', font:{weight:'bold', size:10}, formatter: v=>format(v)} }, scales:{ x:{grid:{display:false}}, y:{grid:{display:false}} } };
 
         // GRÁFICO COMPARATIVO BAIRROS
-        const keys = Array.from(
-            new Set([...Object.keys(popPorBairro), ...Object.keys(elPorBairro)])
-        )
-        .filter(k => k && k !== "Outros")
-        .sort((a,b) => (elPorBairro[b]||0) - (elPorBairro[a]||0));
-        const dPop = []; const dEl = [];
-        keys.forEach(k => { dPop.push(Math.round(popPorBairro[k]||0)); dEl.push(elPorBairro[k]||0); });
+        const keys = Object.keys(elPorBairro)
+            .filter(k => k)
+            .sort((a,b) => (elPorBairro[b]||0) - (elPorBairro[a]||0));
+
+        const dPop = [];
+        const dEl = [];
+
+        keys.forEach(k => {
+            dPop.push(
+                Math.round(
+                    obterPopulacaoBairro(k)
+                )
+            );
+
+            dEl.push(
+                elPorBairro[k] || 0
+            );
+        });
         
         document.getElementById("bairroChartContainer").style.height = Math.max(500, keys.length*40)+"px";
         new Chart(document.getElementById("chartBairros"), {
             type: "bar",
             data: { labels: keys, datasets: [
-                { label: "População IBGE estimada 16+", data: dPop.map(v => Math.round(v)), backgroundColor: "#8b5cf6", borderRadius: 4 },
+                { label: "População apta a votar em 2026 (estimativa IBGE)", data: dPop.map(v => Math.round(v)), backgroundColor: "#8b5cf6", borderRadius: 4 },
                 { label: "Eleitores TRE", data: dEl, backgroundColor: "#2563eb", borderRadius: 4 }
             ]},
             options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, plugins: { legend:{display:true, position:'top'}, datalabels: {anchor:'end', align:'right', color:'#334', font:{size:9, weight:'bold'}, formatter:v=>format(v)} }, scales:{ x:{display:false}, y:{grid:{display:false}, ticks:{font:{weight:'600'}}} } }
