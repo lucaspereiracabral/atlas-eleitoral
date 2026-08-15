@@ -1488,11 +1488,20 @@ body:not(.auth-locked) #auth-gate { display: none; }
         );
 
         atualizarBuffer();
+
+        const sidebarBuffer = document.querySelector('#mapas-ibge .sidebar');
+        if(sidebarBuffer) sidebarBuffer.classList.add('buffer-active');
+        if(window.matchMedia('(max-width:700px)').matches) {
+            setTimeout(() => {
+                document.getElementById('buffer-tool')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 80);
+        }
     }
 
     function fecharBuffer() {
         document.getElementById("buffer-tool").style.display = "none";
         if(bufferCircle) mapIBGE.removeLayer(bufferCircle);
+        document.querySelector('#mapas-ibge .sidebar')?.classList.remove('buffer-active');
         mapIBGE.setView([-26.91, -48.66], 13);
     }
 

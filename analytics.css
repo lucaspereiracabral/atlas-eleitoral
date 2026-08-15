@@ -16,3 +16,37 @@ nav{grid-column:1/-1;grid-row:2;width:100%;height:48px!important;display:flex!im
 @media(max-width:390px){.kpi-grid,.analytics-kpis{grid-template-columns:1fr!important}.hero h2{font-size:24px!important}.nav-btn{padding:0 10px!important;font-size:10px!important}.sidebar{max-height:45dvh}.map-container{height:55dvh!important;min-height:55dvh!important}.analytics-page{padding-left:8px!important;padding-right:8px!important}.party-chart-wrap{height:940px!important}}
 
 @media(orientation:landscape) and (max-height:520px){header{height:64px!important;min-height:64px;display:flex!important;padding:5px 8px!important}.brand-text{display:none!important}.auth-user-area{display:flex}.auth-user-email{display:none!important}nav{height:54px!important;flex:1;grid-column:auto;grid-row:auto}.tab-content{height:calc(100dvh - 64px)!important;max-height:calc(100dvh - 64px)!important}.map-layout{min-height:calc(100dvh - 64px);flex-direction:row!important}.sidebar{width:38%!important;min-width:260px!important;max-height:none!important}.map-container{height:calc(100dvh - 80px)!important;min-height:360px!important;flex:1!important}}
+
+
+/* Mobile UX refinements: prioritize data over map */
+@media(max-width:700px){
+  #mapas-tre .sidebar{max-height:54dvh!important;min-height:0!important}
+  #mapas-tre .sidebar-header{padding:11px 12px!important}
+  #mapas-tre .sidebar-header p{margin-top:3px!important}
+  #mapas-tre .list-container{max-height:34dvh!important;min-height:150px!important}
+  #mapas-tre .map-container{height:40dvh!important;min-height:40dvh!important}
+  #tre-resumo{font-size:11px!important;font-weight:800!important;color:#475569!important}
+
+  #mapas-ibge .sidebar{max-height:none!important;min-height:0!important;overflow:visible!important}
+  #mapas-ibge .sidebar-header{padding:12px!important}
+  #mapas-ibge .map-container{height:41dvh!important;min-height:41dvh!important}
+  #mapas-ibge .legend{padding:12px!important;grid-template-columns:1fr 1fr!important;row-gap:3px!important}
+  #mapas-ibge .legend-title{margin-bottom:7px!important;font-size:10px!important}
+  #mapas-ibge .legend-item{font-size:10px!important;line-height:1.25!important;margin-bottom:4px!important}
+  #mapas-ibge .sidebar.buffer-active .legend{display:none!important}
+  #mapas-ibge .sidebar.buffer-active .sidebar-header{display:none!important}
+  #mapas-ibge .buffer-tool{margin:8px!important;padding:16px!important;border:1px solid #fbbf24!important;border-radius:12px!important;background:#fffdf5!important;box-shadow:0 10px 28px -22px rgba(146,64,14,.65)!important}
+  #mapas-ibge .buffer-tool h4{font-size:13px!important;line-height:1.35!important;margin-bottom:13px!important}
+  #mapas-ibge .slider-container{font-size:11px!important;margin-bottom:5px!important}
+  #mapas-ibge #buffer-raio{font-size:15px!important}
+  #mapas-ibge #buffer-slider{height:30px!important}
+  #mapas-ibge .buffer-result{margin-top:9px!important;padding:13px!important;background:#fffbeb!important}
+  #mapas-ibge .buffer-result span{font-size:9px!important;letter-spacing:.25px!important}
+  #mapas-ibge .buffer-result strong{font-size:27px!important;margin-top:4px!important}
+  .party-chart-wrap{min-width:0!important;overflow:visible!important}
+}
+@media(max-width:390px){
+  #mapas-tre .map-container{height:37dvh!important;min-height:37dvh!important}
+  #mapas-ibge .map-container{height:38dvh!important;min-height:38dvh!important}
+  #mapas-tre .sidebar{max-height:57dvh!important}
+}
