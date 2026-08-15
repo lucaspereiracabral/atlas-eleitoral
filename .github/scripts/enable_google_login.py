@@ -1,0 +1,90 @@
+from pathlib import Path
+import re
+
+path = Path('index.html')
+html = path.read_text(encoding='utf-8')
+
+if 'id="google-login-button"' in html:
+    print('Google login already enabled.')
+    raise SystemExit(0)
+
+html = html.replace(
+    'Entre com o e-mail e a senha cadastrados para acessar a plataforma.',
+    'Entre com sua conta Google autorizada para acessar a plataforma.'
+)
+
+form_pattern = re.compile(r'<form id="auth-form">.*?</form>', re.S)
+
+google_button = '''
+<button id="google-login-button" class="auth-button" type="button" onclick="entrarComGoogle()" style="display:flex;align-items:center;justify-content:center;gap:10px;background:#ffffff;color:#334155;border:1px solid #dbe3ef;box-shadow:0 1px 2px rgba(15,23,42,.05);">
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+        <path fill="#4285F4" d="M21.35 12.27c0-.73-.07-1.43-.19-2.11H12v3.99h5.24a4.48 4.48 0 0 1-1.95 2.94v2.45h3.16c1.85-1.71 2.9-4.23 2.9-7.27Z"/>
+        <path fill="#34A853" d="M12 21.8c2.64 0 4.86-.88 6.48-2.38l-3.16-2.45c-.88.59-2 .94-3.32.94-2.55 0-4.71-1.72-5.48-4.03H3.26v2.53A9.8 9.8 0 0 0 12 21.8Z"/>
+        <path fill="#FBBC05" d="M6.52 13.88A5.9 5.9 0 0 1 6.21 12c0-.65.11-1.28.31-1.88V7.59H3.26A9.8 9.8 0 0 0 2.2 12c0 1.58.38 3.08 1.06 4.41l3.26-2.53Z"/>
+        <path fill="#EA4335" d="M12 6.09c1.44 0 2.73.49 3.75 1.46l2.81-2.81C16.85 3.15 14.63 2.2 12 2.2a9.8 9.8 0 0 0-8.74 5.39l3.26 2.53C7.29 7.81 9.45 6.09 12 6.09Z"/>
+    </svg>
+    <span>Entrar com Google</span>
+</button>
+<div id="auth-message" class="auth-message"></div>
+'''
+
+html, count = form_pattern.subn(google_button, html, count=1)
+if count != 1:
+    raise RuntimeError('Login form not found.')
+
+html = html.replace(
+    'Acesso destinado a usuários previamente cadastrados.',
+    'Acesso destinado a contas Google previamente autorizadas.'
+)
+
+marker = '    async function sairAtlas() {'
+google_js = '''    async function entrarComGoogle() {
+        setAuthMessage("");
+
+        const button = document.getElementById("google-login-button");
+        if (button) {
+            button.disabled = true;
+            button.style.opacity = ".65";
+        }
+
+        const redirectTo = `${window.location.origin}${window.location.pathname}`;
+
+        const { error } = await supabaseClient.auth.signInWithOAuth({
+            provider: "google",
+            options: {
+                redirectTo,
+                queryParams: {
+                    access_type: "offline",
+                    prompt: "select_account"
+                }
+            }
+        });
+
+        if (error) {
+            console.error("Erro no login Google:", error);
+            setAuthMessage("Não foi possível entrar com Google. Verifique a configuração do provedor no Supabase.");
+
+            if (button) {
+                button.disabled = false;
+                button.style.opacity = "1";
+            }
+        }
+    }
+
+'''
+
+if marker not in html:
+    raise RuntimeError('sairAtlas marker not found.')
+html = html.replace(marker, google_js + marker, 1)
+
+# Remove o listener antigo de email/senha.
+html = re.sub(
+    r'\n\s*const authForm = document\.getElementById\("auth-form"\);.*?\n\s*}\n\n\s*supabaseClient\.auth\.onAuthStateChange',
+    '\n\n    supabaseClient.auth.onAuthStateChange',
+    html,
+    count=1,
+    flags=re.S
+)
+
+path.write_text(html, encoding='utf-8')
+print('Google OAuth login enabled successfully.')
