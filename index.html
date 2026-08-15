@@ -209,7 +209,7 @@
     <div id="inicio" class="tab-content active">
         <div class="home-container">
             <h2>Sobre o Projeto</h2>
-            <p>Este portal tem como objetivo principal centralizar, analisar e disponibilizar dados estatísticos e geográficos de Itajaí. A plataforma integra bases de dados oficiais para apoiar análises territoriais e o mapeamento de infraestrutura pública e eleitoral.</p>
+            <p>Este portal tem como objetivo principal centralizar, analisar e disponibilizar dados estatísticos e geográficos de Itajaí. A plataforma integra bases oficiais para apoiar análises territoriais e o mapeamento de infraestrutura pública e eleitoral.</p>
             
             <div class="home-grid">
                 <div class="home-card">
@@ -246,6 +246,7 @@
                 <div class="chart-container"><canvas id="chartInstrucao"></canvas></div>
             </div>
             <div class="chart-box" style="grid-column: span 2;">
+                <div class="chart-title">Eleitorado por Faixa Etária</div>
                 <div class="chart-container" style="height: 450px;"><canvas id="chartFaixaEtaria"></canvas></div>
             </div>
         </div>
@@ -254,8 +255,6 @@
     <!-- Bibliotecas Externas -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Biblioteca PapaParse para ler CSV no navegador -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
     <script>
         // Lógica de Alternância das Guias (Abas)
@@ -316,76 +315,66 @@
                 }).addTo(map);
             });
 
-        // PROCESSAMENTO DOS DADOS DO CSV PARA OS GRÁFICOS
-        fetch('eleitorado itajai 2026.csv')
-            .then(res => res.text())
-            .then(csvText => {
-                Papa.parse(csvText, {
-                    header: true,
-                    delimiter: ";",
-                    skipEmptyLines: true,
-                    complete: function(results) {
-                        const rows = results.data;
-                        
-                        // Funções auxiliares para somar por categoria
-                        const agruparPor = (coluna) => {
-                            const acc = {};
-                            rows.forEach(r => {
-                                const chave = r[coluna] || "Não informado";
-                                const qtd = Number(r['Quantidade de eleitores']) || 0;
-                                acc[chave] = (acc[chave] || 0) + qtd;
-                            });
-                            return acc;
-                        };
+        // DADOS CONSOLIDADOS DO CSV DO ELEITORADO (2026)
+        
+        // 1. Gênero
+        new Chart(document.getElementById('chartGenero'), {
+            type: 'bar',
+            data: {
+                labels: ['Feminino', 'Masculino'],
+                datasets: [{ data: [96639, 85485], backgroundColor: ['#0284c7', '#1e3a8a'], borderRadius: 4 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
 
-                        // 1. Gênero
-                        const genData = agruparPor('Gênero');
-                        new Chart(document.getElementById('chartGenero'), {
-                            type: 'bar',
-                            data: {
-                                labels: Object.keys(genData),
-                                datasets: [{ data: Object.values(genData), backgroundColor: ['#0284c7', '#0284c7'] }]
-                            },
-                            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-                        });
+        // 2. Estado Civil
+        new Chart(document.getElementById('chartEstadoCivil'), {
+            type: 'bar',
+            data: {
+                labels: ['Solteiro', 'Casado', 'Divorciado', 'Viúvo', 'Separado Judicialmente'],
+                datasets: [{ data: [97924, 66310, 11156, 4578, 2156], backgroundColor: '#0284c7', borderRadius: 4 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
 
-                        // 2. Estado Civil
-                        const civilData = agruparPor('Estado civil');
-                        new Chart(document.getElementById('chartEstadoCivil'), {
-                            type: 'bar',
-                            data: {
-                                labels: Object.keys(civilData),
-                                datasets: [{ data: Object.values(civilData), backgroundColor: '#0284c7' }]
-                            },
-                            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-                        });
+        // 3. Grau de Instrução (Barras Horizontais)
+        new Chart(document.getElementById('chartInstrucao'), {
+            type: 'bar',
+            data: {
+                labels: [
+                    'Ensino Médio Completo', 'Superior Completo', 'Ensino Médio Incompleto', 
+                    'Ensino Fundamental Incompleto', 'Superior Incompleto', 'Ensino Fundamental Completo', 
+                    'Lê e Escreve', 'Analfabeto'
+                ],
+                datasets: [{ 
+                    label: 'Eleitores', 
+                    data: [57135, 33157, 26285, 25565, 21082, 14651, 2915, 1334], 
+                    backgroundColor: '#1e3a8a',
+                    borderRadius: 4
+                }]
+            },
+            options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
 
-                        // 3. Grau de Instrução (Barras Horizontais)
-                        const instData = agruparPor('Grau de instrução');
-                        // Ordena decrescente
-                        const instOrdenado = Object.entries(instData).sort((a,b) => b[1] - a[1]);
-                        new Chart(document.getElementById('chartInstrucao'), {
-                            type: 'bar',
-                            data: {
-                                labels: instOrdenado.map(i => i[0]),
-                                datasets: [{ label: 'Eleitores', data: instOrdenado.map(i => i[1]), backgroundColor: '#1e3a8a' }]
-                            },
-                            options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-                        });
-
-                        // 4. Faixa Etária
-                        const idadeData = agruparPor('Faixa etária');
-                        new Chart(document.getElementById('chartFaixaEtaria'), {
-                            type: 'bar',
-                            data: {
-                                labels: Object.keys(idadeData),
-                                datasets: [{ label: 'Eleitores por Faixa Etária', data: Object.values(idadeData), backgroundColor: '#38bdf8' }]
-                            },
-                            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-                        });
-                    }
-                });
-            });
+        // 4. Faixa Etária
+        new Chart(document.getElementById('chartFaixaEtaria'), {
+            type: 'bar',
+            data: {
+                labels: [
+                    '16 anos', '17 anos', '18 anos', '19 anos', '20 anos', '21 a 24 anos', 
+                    '25 a 29 anos', '30 a 34 anos', '35 a 39 anos', '40 a 44 anos', '45 a 49 anos', 
+                    '50 a 54 anos', '55 a 59 anos', '60 a 64 anos', '65 a 69 anos', '70 a 74 anos', 
+                    '75 a 79 anos', '80 a 84 anos', '85 a 89 anos', '90 a 94 anos', '95 a 99 anos', '100 anos ou mais'
+                ],
+                datasets: [{ 
+                    label: 'Eleitores por Faixa Etária', 
+                    data: [425, 785, 2053, 2606, 2909, 12865, 17913, 19619, 20550, 20960, 19051, 14969, 13167, 12055, 9388, 6759, 3957, 1375, 541, 138, 34, 5], 
+                    backgroundColor: '#0284c7',
+                    borderRadius: 4
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
     </script>
 </body>
 </html>
