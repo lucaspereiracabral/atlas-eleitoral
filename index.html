@@ -220,7 +220,14 @@
     <div class="container">
         <div class="hero">
             <h2>Bem-vindo ao Atlas Eleitoral</h2>
-            <p>Uma plataforma avançada que cruza a base oficial de Locais de Votação (TRE-SC 2026) com a demografia dos Setores Censitários (IBGE Censo 2022). Ferramenta desenhada para análise de precisão do território de Itajaí.</p>
+            <p>Uma plataforma avançada que cruza a base oficial de Locais de Votação (TRE-SC 2026) com a dados dos Setores Censitários do IBGE Censo 2022, com estimativa da população em idade eleitoral. Ferramenta desenhada para análise de precisão do território de Itajaí.</p>
+        </div>
+
+        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px 15px;margin:-12px 0 24px;font-size:11px;color:#9a3412;line-height:1.5;">
+            <strong>Nota metodológica:</strong> o IBGE divulga a faixa de 15 a 19 anos de forma agrupada.
+            Para estimar a população com 16 anos ou mais, são considerados 80% da faixa de 15 a 19 anos
+            e 100% das faixas de 20 anos ou mais. O indicador representa população em idade eleitoral,
+            não o cadastro efetivo de eleitores.
         </div>
 
         <div class="kpi-grid">
@@ -230,9 +237,9 @@
                 <div class="kpi-sub">aptos a votar</div>
             </div>
             <div class="kpi-card purple">
-                <div class="kpi-title">Moradores IBGE (V06002)</div>
+                <div class="kpi-title">População em idade eleitoral - IBGE</div>
                 <div class="kpi-value" id="kpi-pop-home">...</div>
-                <div class="kpi-sub">censo 2022</div>
+                <div class="kpi-sub">estimativa de moradores com 16 anos ou mais • Censo 2022</div>
             </div>
             <div class="kpi-card">
                 <div class="kpi-title">Locais de Votação</div>
@@ -273,7 +280,7 @@
     <div class="map-layout">
         <div class="sidebar">
             <div class="sidebar-header">
-                <h3>Densidade Demográfica (IBGE)</h3>
+                <h3>População em Idade Eleitoral (IBGE)</h3>
                 <p>Clique nos <b>pontos laranjas</b> (Locais de Votação) no mapa para ativar a ferramenta de Raio e descobrir quantos moradores vivem no entorno.</p>
             </div>
             
@@ -286,20 +293,20 @@
                 </div>
                 <input type="range" id="buffer-slider" min="100" max="3000" step="100" value="500" oninput="atualizarBuffer()">
                 <div class="buffer-result">
-                    <span>Moradores na Área (V06002)</span>
+                    <span>População estimada 16+ na área</span>
                     <strong id="buffer-resultado">0</strong>
                 </div>
                 <button onclick="fecharBuffer()" style="width: 100%; margin-top: 15px; padding: 10px; background: white; border: 1px solid var(--border); border-radius: 8px; font-weight: 600; cursor: pointer; color: var(--muted);">Remover Raio</button>
             </div>
 
             <div class="legend">
-                <div class="legend-title">População por Setor</div>
-                <div class="legend-item"><div class="color-box" style="background:#08306b;"></div> Mais de 800 hab.</div>
-                <div class="legend-item"><div class="color-box" style="background:#08519c;"></div> 601 a 800 hab.</div>
-                <div class="legend-item"><div class="color-box" style="background:#2171b5;"></div> 401 a 600 hab.</div>
-                <div class="legend-item"><div class="color-box" style="background:#4292c6;"></div> 201 a 400 hab.</div>
-                <div class="legend-item"><div class="color-box" style="background:#6baed6;"></div> 101 a 200 hab.</div>
-                <div class="legend-item"><div class="color-box" style="background:#9ecae1;"></div> Menos de 100 hab.</div>
+                <div class="legend-title">População estimada 16+ por setor</div>
+                <div class="legend-item"><div class="color-box" style="background:#08306b;"></div> Mais de 700 pessoas</div>
+                <div class="legend-item"><div class="color-box" style="background:#08519c;"></div> 501 a 700 pessoas</div>
+                <div class="legend-item"><div class="color-box" style="background:#2171b5;"></div> 351 a 500 pessoas</div>
+                <div class="legend-item"><div class="color-box" style="background:#4292c6;"></div> 201 a 350 pessoas</div>
+                <div class="legend-item"><div class="color-box" style="background:#6baed6;"></div> 101 a 200 pessoas</div>
+                <div class="legend-item"><div class="color-box" style="background:#9ecae1;"></div> Até 100 pessoas</div>
                 <div style="height: 1px; background: var(--border); margin: 15px 0;"></div>
                 <div class="legend-item"><div class="color-box" style="background:#f59e0b; border-radius: 50%;"></div> Local de Votação (Clique p/ Raio)</div>
             </div>
@@ -316,7 +323,7 @@
         </div>
         <div class="charts-grid">
             <div class="chart-card full">
-                <div class="chart-title">Comparativo: População (IBGE) vs Eleitorado (TRE) por Bairro</div>
+                <div class="chart-title">Comparativo: População estimada 16+ (IBGE) vs Eleitorado (TRE) por Bairro</div>
                 <div id="bairroChartContainer" class="canvas-wrapper large"><canvas id="chartBairros"></canvas></div>
             </div>
             <div class="chart-card">
@@ -348,7 +355,8 @@
     let geoSetores = null;
     let popPorBairro = {};
     let elPorBairro = {};
-    let totalMoradoresIBGE = 0;
+    let totalMoradoresIBGE = 0; // estimativa 16+
+    let populacaoTotalCenso = 0;
 
     // MAPAS LEAFLET
     const mapTRE = L.map("mapTRE", { zoomControl: false }).setView([-26.91, -48.66], 13);
@@ -381,6 +389,39 @@
             }
         }
         return null;
+    }
+
+    /*
+     * Estimativa da população em idade eleitoral (16 anos ou mais).
+     *
+     * O Censo 2022 desta base fornece:
+     * V01034 = 15 a 19 anos
+     * V01035 = 20 a 24 anos
+     * V01036 = 25 a 29 anos
+     * V01037 = 30 a 39 anos
+     * V01038 = 40 a 49 anos
+     * V01039 = 50 a 59 anos
+     * V01040 = 60 a 69 anos
+     * V01041 = 70 anos ou mais
+     *
+     * Como não há uma variável separada apenas para 15 anos,
+     * estimamos 16-19 como 4/5 (80%) da faixa 15-19.
+     */
+    function calcularPopulacao16Mais(props) {
+        const faixa15a19 = parseNum(getProp(props, ["v01034", "V01034"]));
+
+        const vinteMais =
+            parseNum(getProp(props, ["v01035", "V01035"])) +
+            parseNum(getProp(props, ["v01036", "V01036"])) +
+            parseNum(getProp(props, ["v01037", "V01037"])) +
+            parseNum(getProp(props, ["v01038", "V01038"])) +
+            parseNum(getProp(props, ["v01039", "V01039"])) +
+            parseNum(getProp(props, ["v01040", "V01040"])) +
+            parseNum(getProp(props, ["v01041", "V01041"]));
+
+        const estimativa16a19 = faixa15a19 * 0.8;
+
+        return estimativa16a19 + vinteMais;
     }
 
     // CONTROLE DE ABAS (Com redimensionamento de gráficos e mapas)
@@ -418,7 +459,7 @@
         const [bairros, locais, setores] = await Promise.all([
             loadJson("bairros_itajai.geojson"),
             loadJson("locais_de_votacao_e_secoes.geojson"),
-            loadJson("setores_itajai_2022.geojson")
+            loadJson("setores_itajai_2022_demografico.geojson")
         ]);
 
         geoBairros = bairros;
@@ -434,46 +475,123 @@
             });
         }
 
-        // PROCESSA SETORES IBGE (Blindado para números strings e espacial)
-        if(geoSetores) {
-            geoSetores.features.forEach(s => {
-                const pop = parseNum(getProp(s.properties, ['v06002', 'moradores']));
-                totalMoradoresIBGE += pop;
+        // PROCESSA SETORES IBGE - POPULAÇÃO ESTIMADA 16+
+        if(geoSetores && Array.isArray(geoSetores.features)) {
 
-                let bNome = "Outros";
+            totalMoradoresIBGE = 0;
+            populacaoTotalCenso = 0;
+
+            let setoresValidos = 0;
+
+            geoSetores.features.forEach(s => {
+                const props = s.properties || {};
+
+                const popTotal = parseNum(getProp(props, ["v01006", "V01006"]));
+                const pop16Mais = calcularPopulacao16Mais(props);
+
+                populacaoTotalCenso += popTotal;
+                totalMoradoresIBGE += pop16Mais;
+
+                if(pop16Mais > 0) setoresValidos++;
+
+                /*
+                 * Associação do setor ao bairro municipal.
+                 * Usa ponto representativo do setor e, como fallback,
+                 * NM_BAIRRO do próprio IBGE.
+                 */
+                let bNome = getProp(props, ["nm_bairro", "NM_BAIRRO"]) || "Outros";
+
                 if(geoBairros && s.geometry) {
                     try {
-                        const cent = turf.centroid(s);
+                        const pontoRepresentativo = turf.pointOnFeature(s);
+
                         for(const b of geoBairros.features) {
-                            if(turf.booleanPointInPolygon(cent, b)) {
-                                bNome = getProp(b.properties, ["nome", "bairro"]) || bNome; break;
+                            if(turf.booleanPointInPolygon(pontoRepresentativo, b)) {
+                                bNome = getProp(
+                                    b.properties,
+                                    ["nome", "bairro", "NOME", "BAIRRO", "nome_bairro"]
+                                ) || bNome;
+                                break;
                             }
                         }
-                    } catch(e){}
+                    } catch(e) {
+                        console.warn("Falha no cruzamento espacial do setor:", e);
+                    }
                 }
-                popPorBairro[bNome] = (popPorBairro[bNome]||0) + pop;
+
+                popPorBairro[bNome] = (popPorBairro[bNome] || 0) + pop16Mais;
             });
 
-            document.getElementById('kpi-pop-home').innerText = format(totalMoradoresIBGE);
+            // Como parte da faixa 15-19 é estimada, arredondamos o resultado.
+            totalMoradoresIBGE = Math.round(totalMoradoresIBGE);
 
-            // PLOTA SETORES COROPLÉTICO NO MAPA IBGE
+            const kpiPop = document.getElementById("kpi-pop-home");
+            if(kpiPop) kpiPop.innerText = format(totalMoradoresIBGE);
+
+            console.info("=== CENSO 2022 - POPULAÇÃO EM IDADE ELEITORAL ===");
+            console.info("Setores carregados:", geoSetores.features.length);
+            console.info("Setores com população 16+ estimada:", setoresValidos);
+            console.info("População total V01006:", populacaoTotalCenso);
+            console.info("População estimada 16+:", totalMoradoresIBGE);
+            console.info("Método: 80% da faixa 15-19 + todas as faixas de 20 anos ou mais.");
+
+            // MAPA COROPLÉTICO: população estimada 16+ por setor.
             L.geoJSON(geoSetores, {
                 style: function(f) {
-                    const p = parseNum(getProp(f.properties, ['v06002']));
-                    const c = p>800?'#08306b':p>600?'#08519c':p>400?'#2171b5':p>200?'#4292c6':p>100?'#6baed6':'#9ecae1';
-                    return { fillColor: c, color: '#fff', weight: 0.5, fillOpacity: 0.75 };
+                    const pop16 = calcularPopulacao16Mais(f.properties || {});
+
+                    const c =
+                        pop16 > 700 ? "#08306b" :
+                        pop16 > 500 ? "#08519c" :
+                        pop16 > 350 ? "#2171b5" :
+                        pop16 > 200 ? "#4292c6" :
+                        pop16 > 100 ? "#6baed6" :
+                                     "#9ecae1";
+
+                    return {
+                        fillColor: c,
+                        color: "#ffffff",
+                        weight: 0.55,
+                        fillOpacity: 0.78
+                    };
                 },
-                onEachFeature: function(f, l) {
-                    const p = f.properties;
-                    const pop = parseNum(getProp(p, ['v06002']));
-                    const resp = parseNum(getProp(p, ['v06001']));
-                    const renda = parseNum(getProp(p, ['v06004']));
-                    
-                    l.bindPopup(`
-                        <div class="pop-title">Setor Censitário</div>
-                        <div class="pop-highlight"><span>Moradores (V06002)</span><strong>${format(pop)}</strong></div>
-                        <div class="pop-row" style="margin-top:12px;"><span>Responsáveis (V06001)</span><strong>${format(resp)}</strong></div>
-                        <div class="pop-row"><span>Renda Média (V06004)</span><strong>R$ ${format(renda)}</strong></div>
+
+                onEachFeature: function(f, layer) {
+                    const p = f.properties || {};
+
+                    const pop16 = Math.round(calcularPopulacao16Mais(p));
+                    const popTotal = parseNum(getProp(p, ["v01006", "V01006"]));
+                    const setor = getProp(p, ["cd_setor", "CD_SETOR"]) || "Não informado";
+                    const bairroIBGE = getProp(p, ["nm_bairro", "NM_BAIRRO"]) || "Não informado";
+
+                    const pct = popTotal > 0 ? (pop16 / popTotal) * 100 : 0;
+
+                    layer.bindPopup(`
+                        <div class="pop-title">Setor Censitário ${setor}</div>
+
+                        <div class="pop-row">
+                            <span>Bairro IBGE</span>
+                            <strong>${bairroIBGE}</strong>
+                        </div>
+
+                        <div class="pop-highlight">
+                            <span>População estimada com 16 anos ou mais</span>
+                            <strong>${format(pop16)}</strong>
+                        </div>
+
+                        <div class="pop-row" style="margin-top:12px;">
+                            <span>População total do setor</span>
+                            <strong>${format(popTotal)}</strong>
+                        </div>
+
+                        <div class="pop-row">
+                            <span>Percentual estimado 16+</span>
+                            <strong>${pct.toFixed(1).replace(".", ",")}%</strong>
+                        </div>
+
+                        <div style="font-size:9px;color:#64748b;line-height:1.4;margin-top:10px;">
+                            Estimativa: 80% da faixa de 15 a 19 anos + população de 20 anos ou mais.
+                        </div>
                     `);
                 }
             }).addTo(mapIBGE);
@@ -573,7 +691,7 @@
             return `
                 <div class="list-item" onclick="focarBairroTRE('${b}', this)">
                     <div style="display:flex; justify-content:space-between;"><span class="item-title">${b}</span></div>
-                    <div class="item-badges"><span class="badge purple">${format(pCenso)} hab.</span><span class="badge blue">${format(total)} el.</span></div>
+                    <div class="item-badges"><span class="badge purple">${format(Math.round(pCenso))} pop. 16+</span><span class="badge blue">${format(total)} el.</span></div>
                     <div class="sub-list">${ls}</div>
                 </div>
             `;
@@ -638,7 +756,7 @@
         let estimativaPop = 0;
         
         geoSetores.features.forEach(sec => {
-            const pop = parseNum(getProp(sec.properties, ['v06002']));
+            const pop = calcularPopulacao16Mais(sec.properties || {});
             if(pop <= 0) return;
 
             if(turf.booleanIntersects(buff, sec)) {
@@ -679,12 +797,13 @@
         new Chart(document.getElementById("chartBairros"), {
             type: "bar",
             data: { labels: keys, datasets: [
-                { label: "Moradores IBGE", data: dPop, backgroundColor: "#8b5cf6", borderRadius: 4 },
+                { label: "População IBGE estimada 16+", data: dPop.map(v => Math.round(v)), backgroundColor: "#8b5cf6", borderRadius: 4 },
                 { label: "Eleitores TRE", data: dEl, backgroundColor: "#2563eb", borderRadius: 4 }
             ]},
             options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, plugins: { legend:{display:true, position:'top'}, datalabels: {anchor:'end', align:'right', color:'#334', font:{size:9, weight:'bold'}, formatter:v=>format(v)} }, scales:{ x:{display:false}, y:{grid:{display:false}, ticks:{font:{weight:'600'}}} } }
         });
 
+        
         // DEMOGRÁFICOS
         new Chart(document.getElementById("chartGenero"), { type: "doughnut", data: { labels: ["Feminino", "Masculino"], datasets: [{ data: [96639, 85485], backgroundColor: ["#0ea5e9", "#1e293b"], borderWidth:0 }] }, options: { responsive:true, maintainAspectRatio:false, cutout:"65%", plugins:{ legend:{display:true, position:'bottom'}, datalabels:{color:'#fff', font:{size:12, weight:'bold'}, formatter:v=>format(v)} } } });
         new Chart(document.getElementById("chartIdade"), { type: "bar", data: { labels: ["16-20", "21-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80+"], datasets: [{ data: [8722, 30778, 40169, 40011, 28136, 21443, 10716, 2103], backgroundColor: "#2563eb", borderRadius:4 }] }, options: cfg });
