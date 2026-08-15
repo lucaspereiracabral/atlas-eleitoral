@@ -323,7 +323,7 @@
         </div>
         <div class="charts-grid">
             <div class="chart-card full">
-                <div class="chart-title">Comparativo: População estimada 16+ (IBGE) vs Eleitorado (TRE) por Bairro</div>
+                <div class="chart-title">Comparativo: População estimada 16+ (IBGE, distribuição proporcional por área) vs Eleitorado (TRE) por Bairro</div>
                 <div id="bairroChartContainer" class="canvas-wrapper large"><canvas id="chartBairros"></canvas></div>
             </div>
             <div class="chart-card">
@@ -451,39 +451,114 @@
         });
     }
 
-    function resolverBairroDoSetor(setor) {
-        if(!setor) return "Outros";
+    function bboxSobrepoe(a, b) {
+        return !(
+            a[2] < b[0] ||
+            a[0] > b[2] ||
+            a[3] < b[1] ||
+            a[1] > b[3]
+        );
+    }
 
-        /*
-         * 1. Prioridade: cruzamento espacial com a camada oficial
-         *    de bairros do próprio projeto.
-         *
-         * Usamos centroid(), que está disponível no Turf 6.5 e evita
-         * o problema observado com pointOnFeature em alguns bundles.
-         */
-        if(geoBairros && setor.geometry) {
+    /*
+     * Distribui a população de um setor entre os bairros conforme
+     * a proporção da área de interseção setor x bairro.
+     *
+     * Exemplo:
+     * - 70% da área do setor em Cordeiros
+     * - 30% da área do setor em São Vicente
+     * => 70% da população 16+ vai para Cordeiros
+     * => 30% da população 16+ vai para São Vicente
+     *
+     * As proporções são normalizadas pela soma das áreas efetivamente
+     * intersectadas, preservando a população total do setor.
+     */
+    function distribuirSetorEntreBairros(setor, populacao) {
+        if(!setor || !setor.geometry || !geoBairros || populacao <= 0) {
+            return [];
+        }
+
+        const resultados = [];
+
+        let bboxSetor;
+        try {
+            bboxSetor = turf.bbox(setor);
+        } catch(e) {
+            return [];
+        }
+
+        for(const bairro of geoBairros.features) {
+            if(!bairro || !bairro.geometry) continue;
+
             try {
-                const centroide = turf.centroid(setor);
+                const bboxBairro = bairro.__bboxCache || turf.bbox(bairro);
+                bairro.__bboxCache = bboxBairro;
 
-                for(const b of geoBairros.features) {
-                    if(turf.booleanPointInPolygon(centroide, b)) {
-                        const nome = getProp(
-                            b.properties || {},
-                            ["nome", "bairro", "NOME", "BAIRRO", "nome_bairro"]
-                        );
+                if(!bboxSobrepoe(bboxSetor, bboxBairro)) continue;
 
-                        if(nome) return nome;
-                    }
-                }
+                if(!turf.booleanIntersects(setor, bairro)) continue;
+
+                const inter = turf.intersect(setor, bairro);
+                if(!inter) continue;
+
+                const areaInter = turf.area(inter);
+                if(!(areaInter > 0)) continue;
+
+                const nome = getProp(
+                    bairro.properties || {},
+                    ["nome", "bairro", "NOME", "BAIRRO", "nome_bairro"]
+                );
+
+                if(!nome) continue;
+
+                resultados.push({
+                    bairro: nome,
+                    area: areaInter
+                });
+
             } catch(e) {
-                console.warn("Erro no cruzamento setor x bairro:", e);
+                // Uma geometria inválida não deve interromper o carregamento.
+            }
+        }
+
+        if(resultados.length) {
+            const areaSomada = resultados.reduce((s, r) => s + r.area, 0);
+
+            if(areaSomada > 0) {
+                return resultados.map(r => ({
+                    bairro: r.bairro,
+                    populacao: populacao * (r.area / areaSomada)
+                }));
             }
         }
 
         /*
-         * 2. Fallback: NM_BAIRRO do IBGE.
-         *    O nome é normalizado para casar, por exemplo,
-         *    "São Vicente" com "SÃO VICENTE".
+         * Fallback para geometrias que falhem na interseção:
+         * atribui todo o setor ao bairro que contém o centroide.
+         */
+        try {
+            const centroide = turf.centroid(setor);
+
+            for(const bairro of geoBairros.features) {
+                if(turf.booleanPointInPolygon(centroide, bairro)) {
+                    const nome = getProp(
+                        bairro.properties || {},
+                        ["nome", "bairro", "NOME", "BAIRRO", "nome_bairro"]
+                    );
+
+                    if(nome) {
+                        return [{
+                            bairro: nome,
+                            populacao: populacao
+                        }];
+                    }
+                }
+            }
+        } catch(e) {}
+
+        /*
+         * Último fallback: usa NM_BAIRRO do IBGE somente quando o nome
+         * casar com a camada municipal.
          */
         const nomeIBGE = getProp(
             setor.properties || {},
@@ -492,10 +567,19 @@
 
         if(nomeIBGE) {
             const canonico = bairroCanonicoPorNome[normalizarNome(nomeIBGE)];
-            if(canonico) return canonico;
+
+            if(canonico) {
+                return [{
+                    bairro: canonico,
+                    populacao: populacao
+                }];
+            }
         }
 
-        return "Outros";
+        return [{
+            bairro: "Outros",
+            populacao: populacao
+        }];
     }
 
     // CONTROLE DE ABAS (Com redimensionamento de gráficos e mapas)
@@ -570,9 +654,12 @@
 
                 if(pop16Mais > 0) setoresValidos++;
 
-                const bNome = resolverBairroDoSetor(s);
+                const distribuicao = distribuirSetorEntreBairros(s, pop16Mais);
 
-                popPorBairro[bNome] = (popPorBairro[bNome] || 0) + pop16Mais;
+                distribuicao.forEach(parte => {
+                    popPorBairro[parte.bairro] =
+                        (popPorBairro[parte.bairro] || 0) + parte.populacao;
+                });
             });
 
             // Como parte da faixa 15-19 é estimada, arredondamos o resultado.
@@ -587,6 +674,18 @@
             console.info("População total V01006:", populacaoTotalCenso);
             console.info("População estimada 16+:", totalMoradoresIBGE);
             console.info("Método: 80% da faixa 15-19 + todas as faixas de 20 anos ou mais.");
+            console.info(
+                "População distribuída nos bairros:",
+                Math.round(
+                    Object.entries(popPorBairro)
+                        .filter(([bairro]) => bairro !== "Outros")
+                        .reduce((s, [,v]) => s + v, 0)
+                )
+            );
+            console.info(
+                "População sem bairro (Outros):",
+                Math.round(popPorBairro["Outros"] || 0)
+            );
             if((popPorBairro["Outros"] || 0) > totalMoradoresIBGE * 0.8) {
                 console.warn(
                     "A maior parte da população foi atribuída a 'Outros'. " +
@@ -797,10 +896,14 @@
        LÓGICA DE RAIO / BUFFER IBGE (Turf Seguro)
     ========================================================== */
     function abrirBuffer(latlng, nome) {
-        bufferLatLng = latlng;
+        // Aceita tanto [lat, lng] quanto L.LatLng.
+        bufferLatLng = Array.isArray(latlng)
+            ? L.latLng(latlng[0], latlng[1])
+            : L.latLng(latlng);
+
         document.getElementById("buffer-tool").style.display = "block";
         document.getElementById("buffer-escola").innerText = nome;
-        mapIBGE.setView(latlng, 15);
+        mapIBGE.setView(bufferLatLng, 15);
         atualizarBuffer();
     }
 
@@ -827,65 +930,88 @@
             interactive: false
         }).addTo(mapIBGE);
 
-        const ponto = turf.point([bufferLatLng.lng, bufferLatLng.lat]);
-        const bufferGeo = turf.buffer(ponto, raioM / 1000, { units: "kilometers" });
+        /*
+         * CORREÇÃO IMPORTANTE:
+         * bufferLatLng agora é L.LatLng, portanto lng/lat são valores válidos.
+         */
+        const ponto = turf.point([
+            bufferLatLng.lng,
+            bufferLatLng.lat
+        ]);
+
+        const bufferGeo = turf.buffer(
+            ponto,
+            raioM / 1000,
+            { units: "kilometers" }
+        );
+
+        const bboxBuffer = turf.bbox(bufferGeo);
 
         let estimativaPop = 0;
-        let setoresConsiderados = 0;
+        let setoresIntersectados = 0;
+        let setoresFallback = 0;
 
         geoSetores.features.forEach(sec => {
-            const pop = calcularPopulacao16Mais(sec.properties || {});
-            if(pop <= 0 || !sec.geometry) return;
+            if(!sec || !sec.geometry) return;
 
-            let contribuiu = false;
+            const pop16 = calcularPopulacao16Mais(sec.properties || {});
+            if(pop16 <= 0) return;
 
-            /*
-             * Método principal:
-             * população proporcional à área do setor que cai dentro do raio.
-             */
             try {
-                if(turf.booleanIntersects(bufferGeo, sec)) {
-                    const inter = turf.intersect(bufferGeo, sec);
+                const bboxSec = sec.__bboxCache || turf.bbox(sec);
+                sec.__bboxCache = bboxSec;
 
-                    if(inter) {
-                        const areaSetor = turf.area(sec);
-                        const areaInter = turf.area(inter);
+                if(!bboxSobrepoe(bboxBuffer, bboxSec)) return;
+                if(!turf.booleanIntersects(bufferGeo, sec)) return;
 
-                        if(areaSetor > 0 && areaInter > 0) {
-                            estimativaPop += pop * Math.min(1, areaInter / areaSetor);
-                            setoresConsiderados++;
-                            contribuiu = true;
-                        }
+                /*
+                 * Distribuição proporcional pela área do setor que está
+                 * efetivamente dentro do raio.
+                 */
+                const inter = turf.intersect(bufferGeo, sec);
+
+                if(inter) {
+                    const areaSetor = turf.area(sec);
+                    const areaInter = turf.area(inter);
+
+                    if(areaSetor > 0 && areaInter > 0) {
+                        const proporcao = Math.min(1, areaInter / areaSetor);
+
+                        estimativaPop += pop16 * proporcao;
+                        setoresIntersectados++;
+                        return;
                     }
                 }
             } catch(e) {
-                // segue para o fallback abaixo
+                // Vai para fallback abaixo.
             }
 
             /*
-             * Fallback robusto:
-             * se a operação topológica falhar, usa o centroide.
-             * Isso evita resultado 0 por problemas de geometria.
+             * Fallback: se houver problema topológico, utiliza o centroide.
+             * É menos preciso, mas impede o resultado de ficar artificialmente 0.
              */
-            if(!contribuiu) {
-                try {
-                    const centroide = turf.centroid(sec);
+            try {
+                const centroide = turf.centroid(sec);
 
-                    if(turf.booleanPointInPolygon(centroide, bufferGeo)) {
-                        estimativaPop += pop;
-                        setoresConsiderados++;
-                    }
-                } catch(e) {}
-            }
+                if(turf.booleanPointInPolygon(centroide, bufferGeo)) {
+                    estimativaPop += pop16;
+                    setoresFallback++;
+                }
+            } catch(e) {}
         });
 
-        document.getElementById("buffer-resultado").innerText =
-            format(Math.round(estimativaPop));
+        const resultado = Math.round(estimativaPop);
 
-        console.info(
-            `Raio ${raioM} m: ${setoresConsiderados} setores considerados; ` +
-            `${Math.round(estimativaPop)} moradores 16+ estimados.`
-        );
+        document.getElementById("buffer-resultado").innerText =
+            format(resultado);
+
+        console.info("=== BUFFER POPULAÇÃO 16+ ===");
+        console.info("Local:", document.getElementById("buffer-escola").innerText);
+        console.info("Raio:", raioM, "m");
+        console.info("Centro:", bufferLatLng.lat, bufferLatLng.lng);
+        console.info("Setores por interseção:", setoresIntersectados);
+        console.info("Setores por fallback:", setoresFallback);
+        console.info("População estimada 16+:", resultado);
     }
 
     /* =========================================================
