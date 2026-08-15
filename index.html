@@ -235,7 +235,7 @@
     <div id="graficos" class="tab-content">
         <div class="charts-grid">
             <div class="chart-box">
-                <div class="chart-title">Eleitores por Zona/Local</div>
+                <div class="chart-title">Eleitores por Local de Votação</div>
                 <div class="chart-container">
                     <canvas id="graficoBarras"></canvas>
                 </div>
@@ -265,7 +265,6 @@
             document.getElementById(idAba).classList.add('active');
             evento.currentTarget.classList.add('active');
 
-            // Corrige o tamanho do mapa se o usuário navegar para a aba correspondente
             if (idAba === 'mapas') {
                 setTimeout(() => { map.invalidateSize(); }, 100);
             }
@@ -279,21 +278,22 @@
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
-        // Carregamento do arquivo GeoJSON de Locais de Votação
+        // Carregamento do arquivo GeoJSON de Locais de Votação usando os campos reais
         fetch('locais_de_votacao_e_secoes.geojson')
             .then(resposta => {
-                if (!resposta.ok) throw new Error("Erro ao carregar o arquivo GeoJSON.");
+                if (!resposta.ok) throw new Error("Erro HTTP: " + resposta.status);
                 return resposta.json();
             })
             .then(dadosGeoJSON => {
+                console.log("GeoJSON carregado com sucesso!", dadosGeoJSON);
+
                 L.geoJSON(dadosGeoJSON, {
                     pointToLayer: function (feature, latlng) {
-                        // Altere 'eleitores' se a propriedade no seu GeoJSON tiver outro nome exato (ex: num_eleitores, total_eleitores)
-                        const props = feature.properties;
-                        const eleitores = props.eleitores || props.num_eleitores || props.total || 100;
+                        const props = feature.properties || {};
                         
-                        // Define o tamanho do círculo proporcional ao número de eleitores
-                        const raio = Math.max(6, Math.min(22, eleitores / 250));
+                        // Utiliza o campo exato 'total_el_1' para calcular o tamanho do marcador
+                        const eleitores = Number(props.total_el_1) || 150;
+                        const raio = Math.max(6, Math.min(24, eleitores / 250));
 
                         return L.circleMarker(latlng, {
                             radius: raio,
@@ -305,24 +305,29 @@
                         });
                     },
                     onEachFeature: function (feature, layer) {
-                        const props = feature.properties;
-                        // Ajuste os nomes abaixo conforme os atributos do seu GeoJSON (ex: nome_local, endereco, etc.)
-                        const nome = props.nome || props.local || props.nome_local || "Local de Votação";
-                        const secoes = props.secoes || props.secao || "Não informada";
-                        const eleitores = props.eleitores || props.num_eleitores || "Não informado";
+                        const props = feature.properties || {};
+                        
+                        // Mapeamento exato com base nos nomes reais dos campos fornecidos
+                        const nomeLocal = props.local_de_1 || "Local de Votação";
+                        const endereco = props.endereco_1 || "Endereço não informado";
+                        const bairro = props.bairro_1 || "Bairro não informado";
+                        const zona = props.zona_ele_1 || "N/A";
+                        const secoes = props.seções || props.seções_1 || "Não informadas";
+                        const totalEleitores = props.total_el_1 || "Não informado";
 
                         layer.bindPopup(`
-                            <div style="font-family: sans-serif; font-size: 0.9rem; line-height: 1.4;">
-                                <b>${nome}</b><br>
-                                🗳️ Seções: ${secoes}<br>
-                                👥 Eleitores: <b>${eleitores}</b>
+                            <div style="font-family: sans-serif; font-size: 0.9rem; line-height: 1.4; max-width: 250px;">
+                                <b style="color: #1e3a8a; font-size: 1rem;">${nomeLocal}</b><br>
+                                📍 <b>Endereço:</b> ${endereco} - ${bairro}<br>
+                                🏛️ <b>Zona:</b> ${zona} | <b>Seções:</b> ${secoes}<br>
+                                👥 <b>Total de Eleitores:</b> <b>${totalEleitores}</b>
                             </div>
                         `);
                     }
                 }).addTo(map);
             })
             .catch(erro => {
-                console.error("Aviso ao carregar GeoJSON:", erro);
+                console.error("Erro ao carregar o GeoJSON:", erro);
             });
 
         // Inicialização dos Gráficos (Chart.js)
@@ -330,7 +335,7 @@
         new Chart(ctxBar, {
             type: 'bar',
             data: {
-                labels: ['Local A', 'Local B', 'Local C', 'Local D', 'Local E'],
+                labels: ['Zona 01', 'Zona 02', 'Zona 03', 'Zona 04', 'Zona 05'],
                 datasets: [{
                     label: 'Eleitores',
                     data: [1200, 1900, 1500, 2200, 1800],
