@@ -1,0 +1,32 @@
+name: Enable field operations module
+on:
+  push:
+    paths:
+      - '.github/workflows/enable-operacao-campo.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Replace development modules with operations
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          old='<script src="future-modules.js?v=1"></script>'
+          new='<script src="operacao.js?v=1"></script>'
+          if old not in s:
+              raise SystemExit('future-modules script tag not found')
+          s=s.replace(old,new)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit
+        run: |
+          git config user.name "GeoCode"
+          git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
+          git add index.html
+          git commit -m "Replace development modules with field operations" || exit 0
+          git push
