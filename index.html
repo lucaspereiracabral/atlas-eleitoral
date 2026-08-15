@@ -424,6 +424,80 @@
         return estimativa16a19 + vinteMais;
     }
 
+    function normalizarNome(texto) {
+        return String(texto || "")
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "");
+    }
+
+    let bairroCanonicoPorNome = {};
+
+    function prepararIndiceBairros() {
+        bairroCanonicoPorNome = {};
+
+        if(!geoBairros || !Array.isArray(geoBairros.features)) return;
+
+        geoBairros.features.forEach(b => {
+            const nome = getProp(
+                b.properties || {},
+                ["nome", "bairro", "NOME", "BAIRRO", "nome_bairro"]
+            );
+
+            if(nome) {
+                bairroCanonicoPorNome[normalizarNome(nome)] = nome;
+            }
+        });
+    }
+
+    function resolverBairroDoSetor(setor) {
+        if(!setor) return "Outros";
+
+        /*
+         * 1. Prioridade: cruzamento espacial com a camada oficial
+         *    de bairros do próprio projeto.
+         *
+         * Usamos centroid(), que está disponível no Turf 6.5 e evita
+         * o problema observado com pointOnFeature em alguns bundles.
+         */
+        if(geoBairros && setor.geometry) {
+            try {
+                const centroide = turf.centroid(setor);
+
+                for(const b of geoBairros.features) {
+                    if(turf.booleanPointInPolygon(centroide, b)) {
+                        const nome = getProp(
+                            b.properties || {},
+                            ["nome", "bairro", "NOME", "BAIRRO", "nome_bairro"]
+                        );
+
+                        if(nome) return nome;
+                    }
+                }
+            } catch(e) {
+                console.warn("Erro no cruzamento setor x bairro:", e);
+            }
+        }
+
+        /*
+         * 2. Fallback: NM_BAIRRO do IBGE.
+         *    O nome é normalizado para casar, por exemplo,
+         *    "São Vicente" com "SÃO VICENTE".
+         */
+        const nomeIBGE = getProp(
+            setor.properties || {},
+            ["nm_bairro", "NM_BAIRRO"]
+        );
+
+        if(nomeIBGE) {
+            const canonico = bairroCanonicoPorNome[normalizarNome(nomeIBGE)];
+            if(canonico) return canonico;
+        }
+
+        return "Outros";
+    }
+
     // CONTROLE DE ABAS (Com redimensionamento de gráficos e mapas)
     function mudarAba(idAba, el) {
         document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
@@ -465,6 +539,8 @@
         geoBairros = bairros;
         geoSetores = setores;
 
+        prepararIndiceBairros();
+
         let zonasSet = new Set();
 
         // INICIALIZA BAIRROS
@@ -494,30 +570,7 @@
 
                 if(pop16Mais > 0) setoresValidos++;
 
-                /*
-                 * Associação do setor ao bairro municipal.
-                 * Usa ponto representativo do setor e, como fallback,
-                 * NM_BAIRRO do próprio IBGE.
-                 */
-                let bNome = getProp(props, ["nm_bairro", "NM_BAIRRO"]) || "Outros";
-
-                if(geoBairros && s.geometry) {
-                    try {
-                        const pontoRepresentativo = turf.pointOnFeature(s);
-
-                        for(const b of geoBairros.features) {
-                            if(turf.booleanPointInPolygon(pontoRepresentativo, b)) {
-                                bNome = getProp(
-                                    b.properties,
-                                    ["nome", "bairro", "NOME", "BAIRRO", "nome_bairro"]
-                                ) || bNome;
-                                break;
-                            }
-                        }
-                    } catch(e) {
-                        console.warn("Falha no cruzamento espacial do setor:", e);
-                    }
-                }
+                const bNome = resolverBairroDoSetor(s);
 
                 popPorBairro[bNome] = (popPorBairro[bNome] || 0) + pop16Mais;
             });
@@ -534,6 +587,21 @@
             console.info("População total V01006:", populacaoTotalCenso);
             console.info("População estimada 16+:", totalMoradoresIBGE);
             console.info("Método: 80% da faixa 15-19 + todas as faixas de 20 anos ou mais.");
+            if((popPorBairro["Outros"] || 0) > totalMoradoresIBGE * 0.8) {
+                console.warn(
+                    "A maior parte da população foi atribuída a 'Outros'. " +
+                    "Verifique a sobreposição entre setores e bairros."
+                );
+            }
+
+            console.table(
+                Object.entries(popPorBairro)
+                    .map(([bairro, populacao]) => ({
+                        bairro,
+                        populacao16mais: Math.round(populacao)
+                    }))
+                    .sort((a,b) => b.populacao16mais - a.populacao16mais)
+            );
 
             // MAPA COROPLÉTICO: população estimada 16+ por setor.
             L.geoJSON(geoSetores, {
@@ -687,7 +755,7 @@
             const ls = distLoc[b].sort((a,b)=>b.eleitores - a.eleitores).map(l => 
                 `<div class="sub-item" onclick="event.stopPropagation(); focarLocalTRE('${l.nome}')"><span>${l.nome}</span><strong>${format(l.eleitores)}</strong></div>`
             ).join('');
-            const pCenso = popPorBairro[b] || 0;
+            const pCenso = Math.round(popPorBairro[b] || 0);
             return `
                 <div class="list-item" onclick="focarBairroTRE('${b}', this)">
                     <div style="display:flex; justify-content:space-between;"><span class="item-title">${b}</span></div>
@@ -744,37 +812,80 @@
 
     function atualizarBuffer() {
         if(!geoSetores || !bufferLatLng) return;
+
         const raioM = parseInt(document.getElementById("buffer-slider").value);
         document.getElementById("buffer-raio").innerText = raioM + "m";
 
         if(bufferCircle) mapIBGE.removeLayer(bufferCircle);
-        bufferCircle = L.circle(bufferLatLng, { radius: raioM, color: '#f59e0b', fillColor: '#f59e0b', fillOpacity: 0.25, weight: 2, interactive: false }).addTo(mapIBGE);
 
-        const pt = turf.point([bufferLatLng.lng, bufferLatLng.lat]);
-        const buff = turf.buffer(pt, raioM/1000, {units: 'kilometers'});
-        
+        bufferCircle = L.circle(bufferLatLng, {
+            radius: raioM,
+            color: "#f59e0b",
+            fillColor: "#f59e0b",
+            fillOpacity: 0.20,
+            weight: 2,
+            interactive: false
+        }).addTo(mapIBGE);
+
+        const ponto = turf.point([bufferLatLng.lng, bufferLatLng.lat]);
+        const bufferGeo = turf.buffer(ponto, raioM / 1000, { units: "kilometers" });
+
         let estimativaPop = 0;
-        
+        let setoresConsiderados = 0;
+
         geoSetores.features.forEach(sec => {
             const pop = calcularPopulacao16Mais(sec.properties || {});
-            if(pop <= 0) return;
+            if(pop <= 0 || !sec.geometry) return;
 
-            if(turf.booleanIntersects(buff, sec)) {
-                try {
-                    // Turf intersect syntax for v6
-                    const inter = turf.intersect(buff, sec);
+            let contribuiu = false;
+
+            /*
+             * Método principal:
+             * população proporcional à área do setor que cai dentro do raio.
+             */
+            try {
+                if(turf.booleanIntersects(bufferGeo, sec)) {
+                    const inter = turf.intersect(bufferGeo, sec);
+
                     if(inter) {
-                        const aSec = turf.area(sec);
-                        const aInt = turf.area(inter);
-                        estimativaPop += pop * (aInt / aSec);
+                        const areaSetor = turf.area(sec);
+                        const areaInter = turf.area(inter);
+
+                        if(areaSetor > 0 && areaInter > 0) {
+                            estimativaPop += pop * Math.min(1, areaInter / areaSetor);
+                            setoresConsiderados++;
+                            contribuiu = true;
+                        }
                     }
-                } catch(e) {
-                    // Fallback seguro se a topologia falhar
-                    if(turf.booleanPointInPolygon(turf.centroid(sec), buff)) estimativaPop += pop;
                 }
+            } catch(e) {
+                // segue para o fallback abaixo
+            }
+
+            /*
+             * Fallback robusto:
+             * se a operação topológica falhar, usa o centroide.
+             * Isso evita resultado 0 por problemas de geometria.
+             */
+            if(!contribuiu) {
+                try {
+                    const centroide = turf.centroid(sec);
+
+                    if(turf.booleanPointInPolygon(centroide, bufferGeo)) {
+                        estimativaPop += pop;
+                        setoresConsiderados++;
+                    }
+                } catch(e) {}
             }
         });
-        document.getElementById("buffer-resultado").innerText = format(Math.round(estimativaPop));
+
+        document.getElementById("buffer-resultado").innerText =
+            format(Math.round(estimativaPop));
+
+        console.info(
+            `Raio ${raioM} m: ${setoresConsiderados} setores considerados; ` +
+            `${Math.round(estimativaPop)} moradores 16+ estimados.`
+        );
     }
 
     /* =========================================================
@@ -791,7 +902,7 @@
         .filter(k => k && k !== "Outros")
         .sort((a,b) => (elPorBairro[b]||0) - (elPorBairro[a]||0));
         const dPop = []; const dEl = [];
-        keys.forEach(k => { dPop.push(popPorBairro[k]||0); dEl.push(elPorBairro[k]||0); });
+        keys.forEach(k => { dPop.push(Math.round(popPorBairro[k]||0)); dEl.push(elPorBairro[k]||0); });
         
         document.getElementById("bairroChartContainer").style.height = Math.max(500, keys.length*40)+"px";
         new Chart(document.getElementById("chartBairros"), {
