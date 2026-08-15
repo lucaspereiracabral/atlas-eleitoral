@@ -1,1049 +1,669 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atlas Eleitoral e Demográfico - Itajaí</title>
 
-    <title>Atlas Eleitoral e Demográfico</title>
-
-    <!-- =========================================================
-         BIBLIOTECAS
-    ========================================================== -->
-
+    <!-- BIBLIOTECAS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.fullscreen@3.0.0/Control.FullScreen.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <style>
-
-        /* =====================================================
-           VARIÁVEIS
-        ====================================================== */
-
+        /* PALETA DE CORES E VARIÁVEIS GLOBAIS */
         :root {
-            --primary: #0f172a;
-            --primary-light: #1e293b;
-            --blue: #2563eb;
-            --blue-dark: #1d4ed8;
-            --blue-light: #eff6ff;
-            --cyan: #38bdf8;
-            --green: #10b981;
-            --orange: #f59e0b;
-            --purple: #8b5cf6;
-            --background: #f1f5f9;
+            --primary: #0f172a;       /* Slate 900 */
+            --primary-light: #1e293b; /* Slate 800 */
+            --blue: #2563eb;          /* Blue 600 */
+            --blue-light: #eff6ff;    /* Blue 50 */
+            --cyan: #0ea5e9;          /* Sky 500 */
+            --purple: #8b5cf6;        /* Violet 500 */
+            --orange: #f59e0b;        /* Amber 500 */
+            --background: #f8fafc;    /* Slate 50 */
             --card: #ffffff;
-            --text: #1e293b;
-            --muted: #64748b;
-            --muted-light: #94a3b8;
-            --border: #e2e8f0;
-            --shadow-sm: 0 1px 2px rgba(15,23,42,.05);
-            --shadow: 0 4px 12px rgba(15,23,42,.08);
-            --shadow-lg: 0 10px 30px rgba(15,23,42,.12);
+            --text: #334155;          /* Slate 700 */
+            --muted: #64748b;         /* Slate 500 */
+            --border: #e2e8f0;        /* Slate 200 */
+            --shadow-sm: 0 1px 2px rgba(15,23,42,0.05);
+            --shadow: 0 4px 6px -1px rgba(15,23,42,0.1), 0 2px 4px -2px rgba(15,23,42,0.05);
             --radius: 12px;
         }
 
-        /* =====================================================
-           RESET E BASE
-        ====================================================== */
+        /* RESET BÁSICO */
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        html, body { width: 100%; height: 100%; background: var(--background); color: var(--text); overflow: hidden; }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body { width: 100%; height: 100%; }
-        body {
-            font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
-            background: var(--background);
-            color: var(--text);
-            overflow: hidden;
-        }
-
-        ::-webkit-scrollbar { width: 7px; height: 7px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-        /* =====================================================
-           HEADER
-        ====================================================== */
-
+        /* HEADER PROFISSIONAL */
         header {
-            height: 74px;
-            background: rgba(255,255,255,.97);
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 28px;
-            position: relative;
-            z-index: 2000;
-            box-shadow: var(--shadow-sm);
+            height: 70px; background: var(--card); border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between; padding: 0 30px;
+            box-shadow: var(--shadow-sm); position: relative; z-index: 1000;
         }
+        .brand { display: flex; align-items: center; gap: 15px; }
+        .brand-logo { width: 40px; height: 40px; border-radius: 8px; object-fit: contain;}
+        .brand-text h1 { font-size: 18px; font-weight: 800; color: var(--primary); letter-spacing: -0.5px; }
+        .brand-text span { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
 
-        .brand { display: flex; align-items: center; gap: 14px; min-width: 260px; }
-        .brand-logo { width: 42px; height: 42px; object-fit: contain; border-radius: 9px; display: block; }
-        .brand-logo-fallback {
-            width: 42px; height: 42px; border-radius: 10px;
-            background: linear-gradient(135deg, var(--blue), #38bdf8);
-            display: flex; align-items: center; justify-content: center;
-            color: white; font-weight: 800; font-size: 16px;
-        }
-        .brand-text h1 { font-size: 17px; line-height: 1.2; font-weight: 800; color: var(--primary); letter-spacing: -.35px; }
-        .brand-text span { display: block; margin-top: 3px; font-size: 10px; text-transform: uppercase; letter-spacing: .7px; font-weight: 600; color: var(--muted); }
-
-        nav { display: flex; align-items: center; gap: 4px; height: 100%; }
+        nav { display: flex; align-items: center; height: 100%; gap: 10px;}
         .nav-btn {
-            height: 100%; border: 0; background: transparent; padding: 0 15px; color: var(--muted);
-            cursor: pointer; font-size: 13px; font-weight: 700; position: relative; transition: color .2s ease, background .2s ease;
+            height: 100%; background: none; border: none; padding: 0 15px; font-size: 13px; font-weight: 600;
+            color: var(--muted); cursor: pointer; position: relative; transition: color 0.2s;
         }
-        .nav-btn:hover { color: var(--primary); background: #f8fafc; }
+        .nav-btn:hover { color: var(--primary); }
         .nav-btn.active { color: var(--blue); }
         .nav-btn.active::after {
-            content: ""; position: absolute; left: 12px; right: 12px; bottom: 0; height: 3px;
-            background: var(--blue); border-radius: 4px 4px 0 0;
+            content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 3px;
+            background: var(--blue); border-radius: 3px 3px 0 0;
         }
 
-        .header-status { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); font-weight: 600; }
-        .status-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; box-shadow: 0 0 0 4px #d1fae5; }
-
-        /* =====================================================
-           TABS E HOME
-        ====================================================== */
-
-        .tab-content { display: none; height: calc(100vh - 74px); overflow-y: auto; }
+        /* ESTRUTURA DE ABAS */
+        .tab-content { display: none; height: calc(100vh - 70px); overflow-y: auto; }
         .tab-content.active { display: block; }
-        .home-page { max-width: 1320px; margin: 0 auto; padding: 34px 30px 50px; }
 
+        /* PÁGINA INICIAL */
+        .container { max-width: 1200px; margin: 0 auto; padding: 40px 30px; }
         .hero {
-            background: radial-gradient(circle at 90% 20%, rgba(56,189,248,.20), transparent 35%), linear-gradient(135deg, #0f172a, #172554);
-            border-radius: 18px; padding: 38px 42px; color: white; position: relative; overflow: hidden;
-            box-shadow: var(--shadow-lg); margin-bottom: 22px;
+            background: radial-gradient(circle at top right, #1e293b, #0f172a); border-radius: 16px;
+            padding: 40px 50px; color: white; box-shadow: var(--shadow); margin-bottom: 30px;
         }
-        .hero::after {
-            content: ""; position: absolute; width: 300px; height: 300px; border-radius: 50%;
-            border: 1px solid rgba(255,255,255,.08); right: -100px; top: -120px;
-        }
-        .hero-content { position: relative; z-index: 2; max-width: 800px; }
-        .hero-eyebrow { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #bae6fd; margin-bottom: 12px; }
-        .hero h2 { font-size: clamp(28px, 4vw, 44px); line-height: 1.08; letter-spacing: -1.4px; margin-bottom: 14px; }
-        .hero p { color: #cbd5e1; font-size: 14px; line-height: 1.7; max-width: 700px; }
+        .hero h2 { font-size: 32px; font-weight: 800; margin-bottom: 15px; letter-spacing: -1px; }
+        .hero p { font-size: 15px; color: #94a3b8; line-height: 1.6; max-width: 700px; }
         
-        .hero-actions { margin-top: 24px; display: flex; gap: 10px; flex-wrap: wrap; }
-        .hero-btn { border: 0; border-radius: 9px; padding: 11px 16px; cursor: pointer; font-size: 12px; font-weight: 700; transition: transform .2s, box-shadow .2s; }
-        .hero-btn:hover { transform: translateY(-1px); }
-        .hero-btn.primary { background: white; color: var(--primary); }
-        .hero-btn.secondary { background: rgba(255,255,255,.10); color: white; border: 1px solid rgba(255,255,255,.18); }
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .kpi-card { background: var(--card); padding: 25px; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow-sm); border-left: 4px solid var(--blue); }
+        .kpi-card.purple { border-left-color: var(--purple); }
+        .kpi-card.orange { border-left-color: var(--orange); }
+        .kpi-title { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+        .kpi-value { font-size: 28px; font-weight: 800; color: var(--primary); }
+        .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 5px; font-weight: 500; }
 
-        /* =====================================================
-           KPIS
-        ====================================================== */
-
-        .home-kpis, .kpi-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 22px;
-        }
-        .home-kpi, .kpi-card {
-            background: white; border: 1px solid var(--border); border-radius: var(--radius);
-            padding: 20px; box-shadow: var(--shadow-sm); position: relative; overflow: hidden;
-        }
-        .home-kpi::before {
-            content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--blue);
-        }
-        .home-kpi:nth-child(2)::before { background: var(--purple); }
-        .home-kpi:nth-child(3)::before { background: var(--green); }
-        .home-kpi:nth-child(4)::before { background: var(--orange); }
-        .home-kpi:nth-child(5)::before { background: var(--cyan); }
-
-        .kpi-label, .kpi-title { color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 5px; }
-        .kpi-value, .kpi-value-large { color: var(--primary); font-size: 27px; font-weight: 800; margin-top: 7px; }
-        .kpi-sub, .kpi-percent { margin-top: 4px; color: var(--muted-light); font-size: 10px; font-weight: 600; }
-        .kpi-icon { font-size: 18px; margin-bottom: 10px; }
-
-        /* =====================================================
-           HOME CARDS
-        ====================================================== */
-
-        .home-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 20px; }
-        .info-card { background: white; border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow-sm); }
-        .info-card h3 { font-size: 15px; margin-bottom: 8px; color: var(--primary); }
-        .info-card p { color: var(--muted); font-size: 12px; line-height: 1.7; }
-
-        .quick-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px; }
-        .quick-action {
-            border: 1px solid var(--border); background: #f8fafc; border-radius: 10px; padding: 14px;
-            cursor: pointer; text-align: left; transition: border .2s, background .2s, transform .2s;
-        }
-        .quick-action:hover { border-color: #bfdbfe; background: var(--blue-light); transform: translateY(-1px); }
-        .quick-icon { font-size: 20px; margin-bottom: 8px; }
-        .quick-action strong { display: block; font-size: 12px; color: var(--primary); }
-        .quick-action span { display: block; margin-top: 3px; font-size: 10px; color: var(--muted); }
-
-        /* =====================================================
-           MAP PAGE
-        ====================================================== */
-
-        .map-page { height: calc(100vh - 74px); padding: 16px; position: relative; }
-        .map-layout { display: flex; gap: 14px; height: 100%; }
-
+        /* LAYOUT DOS MAPAS */
+        .map-layout { display: flex; height: calc(100vh - 70px); padding: 20px; gap: 20px; background: var(--background); }
         .sidebar {
-            width: 400px; min-width: 400px; background: white; border: 1px solid var(--border);
-            border-radius: 14px; display: flex; flex-direction: column; overflow: hidden; box-shadow: var(--shadow);
+            width: 400px; min-width: 400px; background: var(--card); border-radius: var(--radius);
+            border: 1px solid var(--border); box-shadow: var(--shadow); display: flex; flex-direction: column; overflow: hidden;
         }
-        .sidebar-top { padding: 16px; border-bottom: 1px solid var(--border); }
-        .sidebar-heading { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
-        .sidebar-heading h2 { font-size: 15px; color: var(--primary); font-weight: 800; }
-        .sidebar-heading span { display: block; font-size: 10px; color: var(--muted); margin-top: 3px; }
-
-        .search-wrapper { position: relative; margin-bottom: 9px; }
-        .search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 13px; }
-        .search-input {
-            width: 100%; height: 40px; border: 1px solid var(--border); border-radius: 9px;
-            padding: 0 12px 0 34px; outline: none; font-family: inherit; font-size: 12px; color: var(--text);
-            background: #f8fafc; transition: border .2s, box-shadow .2s;
-        }
-        .search-input:focus { border-color: #93c5fd; box-shadow: 0 0 0 3px #dbeafe; background: white; }
-        .select-input {
-            width: 100%; height: 38px; border: 1px solid var(--border); border-radius: 9px; padding: 0 10px;
-            font-family: inherit; font-size: 11px; font-weight: 600; color: var(--text); background: white; outline: none; cursor: pointer;
-        }
-
-        .sidebar-summary { padding: 11px 16px; background: #f8fafc; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .sidebar-summary strong { font-size: 11px; color: var(--primary); }
-        .sidebar-summary span { font-size: 10px; color: var(--muted); }
-
-        .btn-reset { border: 1px solid var(--border); background: white; border-radius: 7px; padding: 6px 9px; font-size: 9px; font-weight: 700; color: var(--muted); cursor: pointer; transition:.2s;}
-        .btn-reset:hover { color: var(--blue); border-color: #bfdbfe; background: var(--blue-light); }
-
-        .lista-conteudo { overflow-y: auto; flex: 1; }
-
-        /* Estilo Lista Bairros */
-        .bairro-item { padding: 13px 15px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background .15s, border .15s; }
-        .bairro-item:hover { background: #f8fafc; }
-        .bairro-item.ativo { background: linear-gradient(90deg, #eff6ff, #ffffff); border-left: 4px solid var(--blue); padding-left: 11px; }
+        .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border); background: #f8fafc; }
+        .sidebar-header h3 { font-size: 16px; font-weight: 800; color: var(--primary); }
+        .sidebar-header p { font-size: 12px; color: var(--muted); margin-top: 5px; line-height: 1.4; }
         
-        .bairro-linha { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-        .bairro-info { min-width: 0; }
-        .bairro-nome { font-size: 12px; font-weight: 750; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .bairro-meta { margin-top: 3px; color: var(--muted); font-size: 9px; }
+        .map-container { flex: 1; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); z-index: 1; position: relative;}
+
+        /* FILTROS E LISTAS TRE */
+        .search-input { width: 100%; padding: 10px 15px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; margin-top: 15px; outline: none; transition: 0.2s; }
+        .search-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-light); }
+        .select-input { width: 100%; padding: 10px 15px; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; margin-top: 10px; font-weight: 600; color: var(--text); outline: none; cursor: pointer; }
         
-        .bairro-badges { display: flex; gap: 5px; align-items: center; }
-        .bairro-eleitores { background: var(--blue-light); color: var(--blue); padding: 4px 8px; border-radius: 20px; font-size: 9px; font-weight: 800; white-space: nowrap; }
-        .bairro-populacao { background: #f3e8ff; color: var(--purple); padding: 4px 8px; border-radius: 20px; font-size: 9px; font-weight: 800; white-space: nowrap; }
+        .list-container { flex: 1; overflow-y: auto; }
+        .list-item { padding: 15px 20px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: 0.2s; }
+        .list-item:hover { background: #f8fafc; }
+        .list-item.active { background: var(--blue-light); border-left: 4px solid var(--blue); }
+        .item-title { font-size: 14px; font-weight: 700; color: var(--primary); }
+        .item-badges { display: flex; gap: 8px; margin-top: 8px; }
+        .badge { padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; }
+        .badge.blue { background: #dbeafe; color: #1e40af; }
+        .badge.purple { background: #f3e8ff; color: #6b21a8; }
 
-        .locais-container { display: none; margin-top: 9px; margin-left: 4px; padding-left: 9px; border-left: 2px solid #dbeafe; }
-        .bairro-item.ativo .locais-container { display: block; }
-        .local-subitem {
-            display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px; margin-bottom: 4px;
-            background: white; border: 1px solid var(--border); border-radius: 7px; cursor: pointer; transition: border .15s, background .15s;
-        }
-        .local-subitem:hover { border-color: #93c5fd; background: var(--blue-light); }
-        .local-name { font-size: 10px; font-weight: 600; line-height: 1.3; color: var(--text); flex: 1; }
-        .local-value { font-size: 9px; font-weight: 800; color: var(--blue); white-space: nowrap; }
+        .sub-list { display: none; margin-top: 10px; padding-left: 10px; border-left: 2px solid #cbd5e1; }
+        .list-item.active .sub-list { display: block; }
+        .sub-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: white; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px; font-size: 11px; cursor: pointer; transition: 0.2s; }
+        .sub-item:hover { border-color: var(--blue); color: var(--blue); }
+        .sub-item strong { font-size: 11px; color: var(--blue); }
 
-        .map-container { flex: 1; min-width: 0; height: 100%; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); z-index: 1; position: relative; }
-        
-        .map-overlay { position: absolute; z-index: 500; pointer-events: none; }
-        .map-status { top: 30px; right: 30px; background: rgba(255,255,255,.96); backdrop-filter: blur(8px); border: 1px solid var(--border); border-radius: 10px; padding: 10px 13px; box-shadow: var(--shadow); min-width: 150px; }
-        .map-status-title { color: var(--muted); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
-        .map-status-value { margin-top: 2px; font-size: 16px; font-weight: 800; color: var(--primary); }
-        .map-status-sub { margin-top: 2px; font-size: 9px; color: var(--muted); }
-        
-        .map-actions { bottom: 28px; right: 28px; display: flex; gap: 7px; pointer-events: auto; position: absolute; z-index: 500;}
-        .map-action {
-            width: 38px; height: 38px; border: 1px solid var(--border); border-radius: 9px; background: rgba(255,255,255,.96);
-            box-shadow: var(--shadow); cursor: pointer; display: flex; align-items: center; justify-content: center;
-            font-size: 15px; color: var(--primary); transition: background .2s, color .2s, transform .2s;
-        }
-        .map-action:hover { background: var(--blue); color: white; transform: translateY(-1px); }
+        /* FERRAMENTA DE BUFFER IBGE */
+        .buffer-tool { display: none; padding: 20px; background: white; border-bottom: 1px solid var(--border); }
+        .buffer-tool h4 { font-size: 14px; color: var(--primary); font-weight: 800; line-height: 1.3; margin-bottom: 15px; }
+        .slider-container { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 10px;}
+        input[type="range"] { width: 100%; accent-color: var(--orange); cursor: pointer; }
+        .buffer-result { margin-top: 15px; background: #fffbeb; border: 1px solid #fde68a; padding: 15px; border-radius: 8px; text-align: center; }
+        .buffer-result span { font-size: 11px; font-weight: 700; color: #b45309; text-transform: uppercase; }
+        .buffer-result strong { display: block; font-size: 28px; font-weight: 800; color: #92400e; margin-top: 5px; }
 
-        /* FERRAMENTA DE BUFFER (RAIO) */
-        .buffer-panel { display: none; padding: 15px; background: #fff; margin: 12px; border-radius: 8px; box-shadow: var(--shadow-sm); border: 1px solid var(--border); }
-        .buffer-panel h4 { font-size: 13px; color: var(--primary); font-weight: 800; margin-bottom: 10px; line-height: 1.3;}
-        .buffer-slider { width: 100%; margin: 12px 0; accent-color: var(--orange);}
-        .buffer-result { background: #fef3c7; border: 1px solid #fde68a; padding: 12px; border-radius: 8px; text-align: center; }
-        .buffer-result span { display: block; font-size: 10px; color: #b45309; font-weight: 700; text-transform: uppercase; }
-        .buffer-result strong { display: block; font-size: 24px; color: #92400e; font-weight: 800; margin-top: 4px;}
+        /* LEGENDA IBGE */
+        .legend { padding: 20px; font-size: 12px; font-weight: 500; color: var(--text); }
+        .legend-title { font-size: 12px; font-weight: 800; color: var(--primary); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;}
+        .legend-item { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .color-box { width: 16px; height: 16px; border-radius: 4px; }
 
-        /* Estilo da Legenda do IBGE */
-        .censo-legend { padding: 15px; background: #fff; font-size: 11px; }
-        .censo-legend h4 { font-size: 12px; color: var(--primary); margin-bottom: 10px; font-weight: 800; }
-        .legend-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-        .legend-color { width: 16px; height: 16px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.1); }
+        /* POPUPS E MAP OVERLAYS */
+        .leaflet-popup-content-wrapper { border-radius: 12px !important; box-shadow: var(--shadow-lg) !important; padding: 5px !important;}
+        .leaflet-popup-content { margin: 10px !important; font-family: 'Inter', sans-serif; min-width: 200px;}
+        .pop-title { font-size: 14px; font-weight: 800; color: var(--primary); margin-bottom: 8px; line-height: 1.3; border-bottom: 1px solid var(--border); padding-bottom: 8px;}
+        .pop-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 6px; }
+        .pop-row span { color: var(--muted); }
+        .pop-row strong { color: var(--primary); font-weight: 700; }
+        .pop-highlight { background: var(--background); padding: 10px; border-radius: 8px; margin-top: 10px; text-align: center;}
+        .pop-highlight span { display: block; font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase;}
+        .pop-highlight strong { display: block; font-size: 18px; font-weight: 800; color: var(--blue); margin-top: 2px;}
 
-        /* =====================================================
-           POPUP LEAFLET
-        ====================================================== */
-        .leaflet-popup-content-wrapper { border-radius: 12px !important; box-shadow: 0 10px 30px rgba(15,23,42,.15) !important; }
-        .leaflet-popup-content { margin: 0 !important; min-width: 240px; }
-        .popup { padding: 15px; font-family: 'Inter', sans-serif;}
-        .popup-title { font-size: 13px; font-weight: 800; color: var(--primary); line-height: 1.35; margin-bottom: 10px; }
-        .popup-row { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; font-size: 10px; }
-        .popup-row:last-child { border-bottom: 0; }
-        .popup-label { color: var(--muted); }
-        .popup-value { color: var(--text); font-weight: 700; }
-        .popup-total { margin-top: 10px; background: var(--blue-light); border-radius: 8px; padding: 10px; }
-        .popup-total.ibge { background: #f3e8ff; }
-        .popup-total small { display: block; color: var(--blue); font-size: 8px; font-weight: 700; text-transform: uppercase; }
-        .popup-total.ibge small { color: var(--purple); }
-        .popup-total strong { display: block; color: var(--primary); font-size: 20px; margin-top: 2px; }
+        /* ESTATÍSTICAS E GRÁFICOS */
+        .charts-container { max-width: 1400px; margin: 0 auto; padding: 40px 30px; }
+        .charts-header { margin-bottom: 30px; }
+        .charts-header h2 { font-size: 28px; font-weight: 800; color: var(--primary); letter-spacing: -0.5px;}
+        .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .chart-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 25px; box-shadow: var(--shadow-sm); }
+        .chart-card.full { grid-column: 1 / -1; }
+        .chart-title { font-size: 15px; font-weight: 800; color: var(--primary); margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        .canvas-wrapper { position: relative; width: 100%; height: 350px; }
+        .canvas-wrapper.large { min-height: 500px; }
 
-        /* =====================================================
-           STATS PAGE
-        ====================================================== */
-        .stats-page { max-width: 1450px; margin: 0 auto; padding: 25px 28px 50px; }
-        .stats-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
-        .stats-title h2 { font-size: 25px; letter-spacing: -.7px; color: var(--primary); }
-        .stats-title p { margin-top: 5px; font-size: 11px; color: var(--muted); }
-        .stats-update { font-size: 10px; color: var(--muted); background: white; border: 1px solid var(--border); padding: 8px 11px; border-radius: 8px; }
+        /* Loader Overlay */
+        #loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--blue); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 15px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
-        .kpi-card { background: white; border: 1px solid var(--border); border-radius: var(--radius); padding: 19px; box-shadow: var(--shadow-sm); position: relative; overflow: hidden; }
-        
-        .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        .chart-box { background: white; border: 1px solid var(--border); border-radius: var(--radius); padding: 19px; box-shadow: var(--shadow-sm); min-width: 0; }
-        .chart-box.full { grid-column: 1 / -1; }
-        .chart-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 13px; }
-        .chart-title { font-size: 13px; font-weight: 800; color: var(--primary); }
-        .chart-subtitle { font-size: 9px; color: var(--muted); margin-top: 3px; }
-        .chart-badge { font-size: 9px; font-weight: 700; color: var(--blue); background: var(--blue-light); padding: 5px 8px; border-radius: 20px; }
-        .chart-container { position: relative; width: 100%; height: 300px; }
-        .chart-container-large { position: relative; width: 100%; min-height: 450px; }
-
-        /* =====================================================
-           MOBILE
-        ====================================================== */
-        @media (max-width: 1100px) {
-            .home-kpis, .kpi-grid { grid-template-columns: repeat(2, 1fr); }
-            .home-grid { grid-template-columns: 1fr; }
-        }
-        @media (max-width: 850px) {
-            header { padding: 0 15px; height: 64px; }
-            .tab-content { height: calc(100vh - 64px); }
-            nav { gap: 0; }
-            .nav-btn { padding: 0 8px; font-size: 10px; }
-            .map-page { height: calc(100vh - 64px); padding: 8px; }
-            .map-layout { flex-direction: column; }
-            .sidebar { width: 100%; min-width: 0; height: 350px; }
-            .map-container { min-height: 400px; }
-            .charts-grid { grid-template-columns: 1fr; }
-            .chart-box.full { grid-column: auto; }
-            .stats-page { padding: 18px 14px 40px; }
-            .stats-header { align-items: flex-start; flex-direction: column; gap: 10px; }
-        }
     </style>
 </head>
 
 <body>
 
+<!-- LOADING SCREEN -->
+<div id="loader">
+    <div class="spinner"></div>
+    <h3 style="color: var(--primary); font-weight: 700;">Processando geodados...</h3>
+    <p style="color: var(--muted); font-size: 13px; margin-top: 5px;">Cruzando IBGE e TRE, isso pode levar alguns segundos.</p>
+</div>
+
 <!-- HEADER -->
 <header>
     <div class="brand">
-        <img id="atlasLogo" class="brand-logo" src="atlas logo.png" alt="Atlas Logo" onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='flex';">
+        <img id="atlasLogo" class="brand-logo" src="atlas logo.png" alt="Atlas" onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='flex';">
         <div id="logoFallback" class="brand-logo-fallback" style="display:none;">AT</div>
         <div class="brand-text">
             <h1>Atlas Eleitoral de Itajaí</h1>
-            <span>Dados • Território • Eleitorado • IBGE</span>
+            <span>Inteligência Geográfica • TRE & IBGE</span>
         </div>
     </div>
-
     <nav>
-        <button class="nav-btn active" onclick="mudarAba('inicio', event)">Visão geral</button>
-        <button class="nav-btn" onclick="mudarAba('mapas', event)">Mapa Eleitoral</button>
-        <button class="nav-btn" onclick="mudarAba('mapa-censo', event)">Censo IBGE</button>
-        <button class="nav-btn" onclick="mudarAba('estatisticas', event)">Indicadores</button>
+        <button class="nav-btn active" onclick="mudarAba('inicio', this)">Visão Geral</button>
+        <button class="nav-btn" onclick="mudarAba('mapas-tre', this)">Mapa TRE</button>
+        <button class="nav-btn" onclick="mudarAba('mapas-ibge', this)">Mapa Censo IBGE</button>
+        <button class="nav-btn" onclick="mudarAba('estatisticas', this)">Gráficos e Estatísticas</button>
     </nav>
-    <div class="header-status"><span class="status-dot"></span> Dados sincronizados</div>
 </header>
 
-<!-- =========================================================
-     ABA: INÍCIO
-========================================================== -->
+<!-- ABA 1: VISÃO GERAL -->
 <div id="inicio" class="tab-content active">
-    <main class="home-page">
-        <section class="hero">
-            <div class="hero-content">
-                <div class="hero-eyebrow">● Plataforma de inteligência territorial</div>
-                <h2>Atlas Eleitoral e Demográfico de Itajaí</h2>
-                <p>Plataforma avançada para exploração espacial. Analise os Locais de Votação (TRE-SC) cruzados com a População Residente dos Setores Censitários (IBGE 2022).</p>
-                <div class="hero-actions">
-                    <button class="hero-btn primary" onclick="mudarAbaPorId('mapas')">Mapa Eleitoral →</button>
-                    <button class="hero-btn primary" onclick="mudarAbaPorId('mapa-censo')">Análise de Raio IBGE →</button>
-                    <button class="hero-btn secondary" onclick="mudarAbaPorId('estatisticas')">Ver indicadores</button>
-                </div>
-            </div>
-        </section>
+    <div class="container">
+        <div class="hero">
+            <h2>Bem-vindo ao Atlas Eleitoral</h2>
+            <p>Uma plataforma avançada que cruza a base oficial de Locais de Votação (TRE-SC 2026) com a demografia dos Setores Censitários (IBGE Censo 2022). Ferramenta desenhada para análise de precisão do território de Itajaí.</p>
+        </div>
 
-        <section class="home-kpis">
-            <div class="home-kpi">
-                <div class="kpi-label">Eleitorado TRE</div>
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-title">Total de Eleitores (TRE)</div>
                 <div class="kpi-value">182.124</div>
-                <div class="kpi-sub">eleitores cadastrados</div>
+                <div class="kpi-sub">aptos a votar</div>
             </div>
-            <div class="home-kpi" style="border-left-color: var(--purple);">
-                <div class="kpi-label" style="color:var(--purple);">População Censo</div>
-                <div class="kpi-value" id="kpi-populacao-home">...</div>
-                <div class="kpi-sub">moradores (V06002)</div>
+            <div class="kpi-card purple">
+                <div class="kpi-title">Moradores IBGE (V06002)</div>
+                <div class="kpi-value" id="kpi-pop-home">...</div>
+                <div class="kpi-sub">censo 2022</div>
             </div>
-            <div class="home-kpi">
-                <div class="kpi-label">Biometria</div>
-                <div class="kpi-value">172.242</div>
-                <div class="kpi-sub">94,6% do eleitorado</div>
-            </div>
-            <div class="home-kpi" style="border-left-color: var(--orange);">
-                <div class="kpi-label">Locais de Votação</div>
+            <div class="kpi-card">
+                <div class="kpi-title">Locais de Votação</div>
                 <div class="kpi-value">83</div>
                 <div class="kpi-sub">escolas e instituições</div>
             </div>
-        </section>
-
-        <section class="home-grid">
-            <div class="info-card">
-                <h3>Explore os dados com precisão</h3>
-                <p>Navegue pelo mapa cruzando os limites censitários com os locais de votação. Utilize a barra lateral e as ferramentas de <b>Raio/Buffer no Mapa do IBGE</b> para analisar a quantidade de moradores no entorno de cada colégio eleitoral.</p>
-                <div class="quick-actions">
-                    <button class="quick-action" onclick="mudarAbaPorId('mapas')">
-                        <div class="quick-icon">🗺️</div>
-                        <strong>Mapa Eleitoral</strong><span>Eleitores por bairro</span>
-                    </button>
-                    <button class="quick-action" onclick="mudarAbaPorId('mapa-censo')">
-                        <div class="quick-icon">📍</div>
-                        <strong>Censo IBGE</strong><span>Raio demográfico</span>
-                    </button>
-                    <button class="quick-action" onclick="mudarAbaPorId('estatisticas')">
-                        <div class="quick-icon">📊</div>
-                        <strong>Estatísticas</strong><span>Gráficos e Indicadores</span>
-                    </button>
-                </div>
+            <div class="kpi-card orange">
+                <div class="kpi-title">Biometria Cadastrada</div>
+                <div class="kpi-value">94,6%</div>
+                <div class="kpi-sub">172.242 eleitores</div>
             </div>
-            <div class="info-card">
-                <h3>Bases de Dados Integrais</h3>
-                <p><b>TRE 2026:</b> Geodados de Locais de Votação, Seções e Estatísticas demográficas dos eleitores catarinenses.</p><br>
-                <p><b>IBGE 2022:</b> Geometria de Setores Censitários, Habitantes (V06002), Responsáveis (V06001) e Renda Média Mensal (V06004).</p>
-            </div>
-        </section>
-    </main>
+        </div>
+    </div>
 </div>
 
-<!-- =========================================================
-     ABA: MAPA ELEITORAL (TRE)
-========================================================== -->
-<div id="mapas" class="tab-content">
-    <main class="map-page">
-        <div class="map-layout">
-            <aside id="sidebar-bairros" class="sidebar">
-                <div class="sidebar-top">
-                    <div class="sidebar-heading">
-                        <div><h2>Mapa Eleitoral</h2><span>Bairros e locais de votação (TRE)</span></div>
-                    </div>
-                    <div class="search-wrapper">
-                        <span class="search-icon">🔎</span>
-                        <input id="buscaLocal" class="search-input" type="text" placeholder="Buscar bairro ou local..." oninput="aplicarFiltrosTRE()">
-                    </div>
-                    <select id="filtroZona" class="select-input" onchange="aplicarFiltrosTRE()">
-                        <option value="TODAS">Todas as zonas eleitorais</option>
-                    </select>
-                </div>
-                <div class="sidebar-summary">
-                    <div>
-                        <strong id="contador-resultados">Carregando...</strong>
-                        <span id="contador-bairros" style="display:block; font-size:10px; color:var(--muted);">-</span>
-                    </div>
-                    <button class="btn-reset" onclick="resetarMapaTRE()">⌂ Resetar</button>
-                </div>
-                <div id="lista-bairros-conteudo" class="lista-conteudo"></div>
-            </aside>
-
-            <div id="map" class="map-container"></div>
+<!-- ABA 2: MAPA TRE -->
+<div id="mapas-tre" class="tab-content">
+    <div class="map-layout">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h3>Locais de Votação (TRE)</h3>
+                <p>Navegue pelos bairros e descubra a distribuição dos eleitores.</p>
+                <input id="buscaLocal" class="search-input" type="text" placeholder="Pesquisar bairro ou local..." oninput="filtrarTRE()">
+                <select id="filtroZona" class="select-input" onchange="filtrarTRE()"><option value="TODAS">Todas as Zonas Eleitorais</option></select>
+            </div>
+            <div style="padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; border-bottom: 1px solid var(--border);">
+                <span style="font-size: 11px; font-weight: 600; color: var(--muted);" id="tre-resumo">...</span>
+                <button onclick="resetarTRE()" style="background: white; border: 1px solid var(--border); padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 700; cursor: pointer; color: var(--muted);">⌂ Resetar Mapa</button>
+            </div>
+            <div id="lista-tre" class="list-container"></div>
         </div>
-
-        <div class="map-overlay map-status">
-            <div class="map-status-title">Eleitorado filtrado</div>
-            <div id="mapStatusValue" class="map-status-value">0</div>
-            <div id="mapStatusSub" class="map-status-sub">locais exibidos</div>
-        </div>
-    </main>
+        <div id="mapTRE" class="map-container"></div>
+    </div>
 </div>
 
-<!-- =========================================================
-     ABA: MAPA CENSO (IBGE 2022)
-========================================================== -->
-<div id="mapa-censo" class="tab-content">
-    <main class="map-page">
-        <div class="map-layout">
-            <aside id="sidebar-censo" class="sidebar">
-                <div class="sidebar-top">
-                    <div class="sidebar-heading">
-                        <div><h2>Censo IBGE 2022</h2><span>Setores Censitários de Itajaí</span></div>
-                    </div>
-                    <p style="font-size: 11px; color: var(--muted); line-height: 1.5;">
-                        Mapa de densidade baseado na variável <b>V06002</b> (Habitantes). 
-                        Clique em um <b>ponto laranja</b> (Local de Votação) para ativar o raio de análise.
-                    </p>
-                </div>
-
-                <!-- PAINEL DE BUFFER INICIALMENTE ESCONDIDO -->
-                <div id="buffer-panel" class="buffer-panel">
-                    <h4 id="buffer-local-name">Nome do Local</h4>
-                    <div style="font-size: 11px; font-weight: 600; color: var(--muted); display:flex; justify-content: space-between;">
-                        Raio de abrangência: <span id="buffer-radius-val" style="color:var(--orange);">500m</span>
-                    </div>
-                    <input type="range" id="buffer-slider" class="buffer-slider" min="100" max="3000" step="100" value="500" oninput="updateBuffer()">
-                    <div class="buffer-result">
-                        <span>Moradores IBGE (V06002) no Raio</span>
-                        <strong id="buffer-pop-val">0</strong>
-                    </div>
-                </div>
-
-                <div class="sidebar-summary">
-                    <div>
-                        <strong style="color: var(--purple);" id="total-pop-censo">Calculando...</strong>
-                        <span style="display:block; font-size:10px; color:var(--muted);">Habitantes em Itajaí</span>
-                    </div>
-                    <button class="btn-reset" onclick="resetarMapaCenso()">⌂ Remover Raio</button>
-                </div>
-
-                <div class="censo-legend">
-                    <h4>Densidade Demográfica</h4>
-                    <div class="legend-row"><div class="legend-color" style="background:#08306b;"></div> Mais de 800 hab. por setor</div>
-                    <div class="legend-row"><div class="legend-color" style="background:#08519c;"></div> 601 a 800 hab.</div>
-                    <div class="legend-row"><div class="legend-color" style="background:#2171b5;"></div> 401 a 600 hab.</div>
-                    <div class="legend-row"><div class="legend-color" style="background:#4292c6;"></div> 201 a 400 hab.</div>
-                    <div class="legend-row"><div class="legend-color" style="background:#6baed6;"></div> 101 a 200 hab.</div>
-                    <div class="legend-row"><div class="legend-color" style="background:#9ecae1;"></div> Menos de 100 hab.</div>
-                    <br>
-                    <div class="legend-row"><div class="legend-color" style="background:#f59e0b; border-radius:50%;"></div> Escolas / Locais de Votação</div>
-                </div>
-            </aside>
-
-            <div id="mapCenso" class="map-container"></div>
-        </div>
-    </main>
-</div>
-
-<!-- =========================================================
-     ESTATÍSTICAS
-========================================================== -->
-<div id="estatisticas" class="tab-content">
-    <main class="stats-page">
-        <div class="stats-header">
-            <div class="stats-title">
-                <h2>Indicadores Integrados</h2>
-                <p>Perfil demográfico cruzado entre IBGE e Tribunal Superior Eleitoral</p>
+<!-- ABA 3: MAPA CENSO IBGE -->
+<div id="mapas-ibge" class="tab-content">
+    <div class="map-layout">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h3>Densidade Demográfica (IBGE)</h3>
+                <p>Clique nos <b>pontos laranjas</b> (Locais de Votação) no mapa para ativar a ferramenta de Raio e descobrir quantos moradores vivem no entorno.</p>
             </div>
-            <div class="stats-update">● Bases: TRE 2026 e IBGE 2022</div>
-        </div>
-
-        <!-- KPIS -->
-        <section class="kpi-grid">
-            <div class="kpi-card">
-                <div class="kpi-icon">👥</div>
-                <div class="kpi-value-large">182.124</div>
-                <div class="kpi-title">Total de Eleitores</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-icon">🏠</div>
-                <div class="kpi-value-large" style="color: var(--purple);" id="kpi-populacao-stats">...</div>
-                <div class="kpi-title">Moradores Residentes</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-icon">✓</div>
-                <div class="kpi-value-large">172.242</div>
-                <div class="kpi-title">Com biometria</div>
-            </div>
-            <div class="kpi-card">
-                <div class="kpi-icon">♿</div>
-                <div class="kpi-value-large">1.961</div>
-                <div class="kpi-title">Com deficiência</div>
-            </div>
-        </section>
-
-        <!-- GRÁFICOS -->
-        <section class="charts-grid">
             
-            <!-- POPULAÇÃO VS ELEITORES POR BAIRRO -->
-            <div class="chart-box full">
-                <div class="chart-header">
-                    <div>
-                        <div class="chart-title">População Residente (IBGE) vs. Eleitorado (TRE)</div>
-                        <div class="chart-subtitle">Comparativo analítico bairro a bairro</div>
-                    </div>
-                    <span class="chart-badge">Calculado por Junção Espacial (Turf.js)</span>
+            <!-- FERRAMENTA DE BUFFER -->
+            <div id="buffer-tool" class="buffer-tool">
+                <h4 id="buffer-escola">Selecione um local no mapa</h4>
+                <div class="slider-container">
+                    <span>Raio de Análise:</span>
+                    <span id="buffer-raio" style="color: var(--orange); font-size: 14px; font-weight: 800;">500m</span>
                 </div>
-                <div id="bairroChartContainer" class="chart-container-large">
-                    <canvas id="chartBairrosDinamico"></canvas>
+                <input type="range" id="buffer-slider" min="100" max="3000" step="100" value="500" oninput="atualizarBuffer()">
+                <div class="buffer-result">
+                    <span>Moradores na Área (V06002)</span>
+                    <strong id="buffer-resultado">0</strong>
                 </div>
+                <button onclick="fecharBuffer()" style="width: 100%; margin-top: 15px; padding: 10px; background: white; border: 1px solid var(--border); border-radius: 8px; font-weight: 600; cursor: pointer; color: var(--muted);">Remover Raio</button>
             </div>
 
-            <!-- GÊNERO -->
-            <div class="chart-box">
-                <div class="chart-header">
-                    <div><div class="chart-title">Eleitorado por gênero</div><div class="chart-subtitle">Distribuição dos eleitores</div></div>
-                </div>
-                <div class="chart-container"><canvas id="chartGenero"></canvas></div>
+            <div class="legend">
+                <div class="legend-title">População por Setor</div>
+                <div class="legend-item"><div class="color-box" style="background:#08306b;"></div> Mais de 800 hab.</div>
+                <div class="legend-item"><div class="color-box" style="background:#08519c;"></div> 601 a 800 hab.</div>
+                <div class="legend-item"><div class="color-box" style="background:#2171b5;"></div> 401 a 600 hab.</div>
+                <div class="legend-item"><div class="color-box" style="background:#4292c6;"></div> 201 a 400 hab.</div>
+                <div class="legend-item"><div class="color-box" style="background:#6baed6;"></div> 101 a 200 hab.</div>
+                <div class="legend-item"><div class="color-box" style="background:#9ecae1;"></div> Menos de 100 hab.</div>
+                <div style="height: 1px; background: var(--border); margin: 15px 0;"></div>
+                <div class="legend-item"><div class="color-box" style="background:#f59e0b; border-radius: 50%;"></div> Local de Votação (Clique p/ Raio)</div>
             </div>
-
-            <!-- TIPO DE VOTO -->
-            <div class="chart-box">
-                <div class="chart-header">
-                    <div><div class="chart-title">Tipo de voto</div><div class="chart-subtitle">Obrigatório e facultativo</div></div>
-                </div>
-                <div class="chart-container"><canvas id="chartTipoVoto"></canvas></div>
-            </div>
-
-            <!-- INSTRUÇÃO -->
-            <div class="chart-box full">
-                <div class="chart-header">
-                    <div><div class="chart-title">Eleitorado por grau de instrução</div><div class="chart-subtitle">Distribuição segundo escolaridade declarada</div></div>
-                </div>
-                <div class="chart-container"><canvas id="chartInstrucao"></canvas></div>
-            </div>
-
-            <!-- FAIXA ETÁRIA -->
-            <div class="chart-box full">
-                <div class="chart-header">
-                    <div><div class="chart-title">Eleitorado por faixa etária</div><div class="chart-subtitle">Distribuição demográfica da idade do eleitorado</div></div>
-                </div>
-                <div class="chart-container"><canvas id="chartFaixaEtaria"></canvas></div>
-            </div>
-        </section>
-    </main>
+        </div>
+        <div id="mapIBGE" class="map-container"></div>
+    </div>
 </div>
 
-<!-- =========================================================
-     SCRIPTS
-========================================================== -->
+<!-- ABA 4: ESTATÍSTICAS -->
+<div id="estatisticas" class="tab-content">
+    <div class="charts-container">
+        <div class="charts-header">
+            <h2>Painel Estatístico Integrado</h2>
+        </div>
+        <div class="charts-grid">
+            <div class="chart-card full">
+                <div class="chart-title">Comparativo: População (IBGE) vs Eleitorado (TRE) por Bairro</div>
+                <div class="canvas-wrapper large"><canvas id="chartBairros"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">Gênero do Eleitorado</div>
+                <div class="canvas-wrapper"><canvas id="chartGenero"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">Faixa Etária</div>
+                <div class="canvas-wrapper"><canvas id="chartIdade"></canvas></div>
+            </div>
+            <div class="chart-card full">
+                <div class="chart-title">Grau de Instrução</div>
+                <div class="canvas-wrapper"><canvas id="chartInstrucao"></canvas></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SCRIPTS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.fullscreen@3.0.0/Control.FullScreen.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
 
 <script>
-    // URLs
-    const BAIRROS_URL = "bairros_itajai.geojson";
-    const LOCAIS_URL = "locais_de_votacao_e_secoes.geojson";
-    const SETORES_URL = "setores_itajai_2022.geojson"; 
+    // VARS GLOBAIS DE DADOS
+    let dadosLocais = [];
+    let geoBairros = null;
+    let geoSetores = null;
+    let popPorBairro = {};
+    let elPorBairro = {};
+    let totalMoradoresIBGE = 0;
 
-    // MAPAS
-    let mapTRE = L.map("map", { zoomControl: false }).setView([-26.91, -48.66], 13);
+    // MAPAS LEAFLET
+    const mapTRE = L.map("mapTRE", { zoomControl: false }).setView([-26.91, -48.66], 13);
     L.control.zoom({ position: "topright" }).addTo(mapTRE);
     L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { maxZoom: 19 }).addTo(mapTRE);
     
-    let mapCenso = L.map("mapCenso", { zoomControl: false }).setView([-26.91, -48.66], 13);
-    L.control.zoom({ position: "topright" }).addTo(mapCenso);
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { maxZoom: 19 }).addTo(mapCenso);
+    const mapIBGE = L.map("mapIBGE", { zoomControl: false }).setView([-26.91, -48.66], 13);
+    L.control.zoom({ position: "topright" }).addTo(mapIBGE);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { maxZoom: 19 }).addTo(mapIBGE);
 
-    // VARIÁVEIS DE DADOS
-    let camadaBairrosGlobal = null;
-    let camadasLocaisGrupo = L.layerGroup().addTo(mapTRE);
+    let camadaBairrosTRE = null;
+    let camadaLocaisTRE = L.layerGroup().addTo(mapTRE);
     
-    let dadosLocaisOriginais = [];
-    let geojsonBairrosOriginal = null;
-    let geojsonSetoresOriginal = null;
+    // VARS DE BUFFER
+    let bufferCircle = null;
+    let bufferLatLng = null;
 
-    let populacaoPorBairro = {}; 
-    let eleitoresPorBairro = {}; 
-    let totalMoradoresIBGE = 0;
-    let graficoBairros = null;
-
-    // VARIÁVEIS DE BUFFER (CENSO)
-    let censoBufferLayer = null;
-    let censoSelectedLatLng = null;
-
-    // Utils
-    function formatarNumero(v) { return Number(v || 0).toLocaleString("pt-BR"); }
-    function escaparHTML(t) { return String(t ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
-    function obterValorGeo(props, chaves) {
+    // UTILS
+    function format(num) { return Number(num||0).toLocaleString("pt-BR"); }
+    function parseNum(val) {
+        if (!val) return 0;
+        if (typeof val === 'number') return val;
+        return parseFloat(String(val).replace(',', '.')) || 0;
+    }
+    function getProp(props, keys) {
         if (!props) return null;
-        for (const c of chaves) {
+        for (const k of keys) {
             for (const p in props) {
-                if (p.toLowerCase() === c.toLowerCase()) return props[p];
+                if (p.toLowerCase() === k.toLowerCase()) return props[p];
             }
         }
         return null;
     }
 
-    // Funcão avançada para carregar JSON (com e sem extensão para evitar erros 404 de digitação)
+    // CONTROLE DE ABAS (Com redimensionamento de gráficos e mapas)
+    function mudarAba(idAba, el) {
+        document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+        document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+        document.getElementById(idAba).classList.add("active");
+        if(el) el.classList.add("active");
+
+        // Gatilho fundamental para corrigir problemas visuais em mapas e gráficos em abas ocultas
+        setTimeout(() => {
+            mapTRE.invalidateSize();
+            mapIBGE.invalidateSize();
+            if(idAba === 'estatisticas') {
+                Object.values(Chart.instances).forEach(chart => chart.resize());
+            }
+        }, 150);
+    }
+
+    // LOAD DADOS (Async Await robusto)
     async function loadJson(url) {
         try {
             let res = await fetch(url);
             if (res.ok) return await res.json();
-            // Fallback sem extensão
-            const fallback = url.replace(".geojson", "");
-            if(fallback !== url) {
-                res = await fetch(fallback);
+            let fb = url.replace(".geojson", "");
+            if(fb !== url) {
+                res = await fetch(fb);
                 if (res.ok) return await res.json();
             }
         } catch(e) {}
         return null;
     }
 
-    // Controle Abas
-    function mudarAba(idAba, ev) {
-        document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
-        document.querySelectorAll(".nav-btn").forEach(el => el.classList.remove("active"));
-        document.getElementById(idAba).classList.add("active");
-        if(ev) ev.currentTarget.classList.add("active");
-        
-        setTimeout(() => {
-            if(idAba === 'mapas') mapTRE.invalidateSize();
-            if(idAba === 'mapa-censo') mapCenso.invalidateSize();
-        }, 150);
-    }
-    function mudarAbaPorId(idAba) {
-        document.querySelectorAll(".nav-btn").forEach(btn => {
-            if(btn.getAttribute("onclick").includes(`'${idAba}'`)) btn.click();
-        });
-    }
+    async function init() {
+        const [bairros, locais, setores] = await Promise.all([
+            loadJson("bairros_itajai.geojson"),
+            loadJson("locais_de_votacao_e_secoes.geojson"),
+            loadJson("setores_itajai_2022.geojson")
+        ]);
 
-    function resetarMapaTRE() {
-        document.querySelectorAll(".bairro-item").forEach(el => el.classList.remove("ativo"));
-        if(camadaBairrosGlobal) camadaBairrosGlobal.eachLayer(l => l.setStyle({color: "#000", weight: 1, fillColor: "transparent"}));
-        mapTRE.setView([-26.91, -48.66], 13);
-    }
-    
-    function resetarMapaCenso() {
-        document.getElementById("buffer-panel").style.display = "none";
-        if(censoBufferLayer) mapCenso.removeLayer(censoBufferLayer);
-        mapCenso.setView([-26.91, -48.66], 13);
-    }
+        geoBairros = bairros;
+        geoSetores = setores;
 
-    // CARREGAR DADOS
-    Promise.all([
-        loadJson(BAIRROS_URL),
-        loadJson(LOCAIS_URL),
-        loadJson(SETORES_URL)
-    ]).then(([bairrosGeo, locaisGeo, setoresGeo]) => {
-        geojsonBairrosOriginal = bairrosGeo;
-        geojsonSetoresOriginal = setoresGeo;
+        let zonasSet = new Set();
 
-        let zonasUnicas = new Set();
-
-        if (bairrosGeo) {
-            bairrosGeo.features.forEach(b => {
-                const nomeBairro = obterValorGeo(b.properties, ["nome", "bairro"]) || "Região";
-                eleitoresPorBairro[nomeBairro] = 0;
-                populacaoPorBairro[nomeBairro] = 0;
+        // INICIALIZA BAIRROS
+        if(geoBairros) {
+            geoBairros.features.forEach(b => {
+                const nome = getProp(b.properties, ["nome", "bairro"]) || "Região";
+                popPorBairro[nome] = 0; elPorBairro[nome] = 0;
             });
         }
 
-        /* =====================================================
-           PROCESSA SETORES IBGE
-        ====================================================== */
-        if (setoresGeo) {
-            setoresGeo.features.forEach(setor => {
-                const pop = Number(obterValorGeo(setor.properties, ['V06002', 'v06002', 'Moradores'])) || 0;
+        // PROCESSA SETORES IBGE (Blindado para números strings e espacial)
+        if(geoSetores) {
+            geoSetores.features.forEach(s => {
+                const pop = parseNum(getProp(s.properties, ['v06002', 'moradores']));
                 totalMoradoresIBGE += pop;
 
-                let bairroSetor = "Outros";
-                if (bairrosGeo && setor.geometry) {
+                let bNome = "Outros";
+                if(geoBairros && s.geometry) {
                     try {
-                        const cent = turf.centroid(setor);
-                        for (const b of bairrosGeo.features) {
-                            if (turf.booleanPointInPolygon(cent, b)) {
-                                bairroSetor = obterValorGeo(b.properties, ["nome", "bairro"]) || bairroSetor;
-                                break;
+                        const cent = turf.centroid(s);
+                        for(const b of geoBairros.features) {
+                            if(turf.booleanPointInPolygon(cent, b)) {
+                                bNome = getProp(b.properties, ["nome", "bairro"]) || bNome; break;
                             }
                         }
-                    } catch(e) {}
+                    } catch(e){}
                 }
-                populacaoPorBairro[bairroSetor] = (populacaoPorBairro[bairroSetor] || 0) + pop;
+                popPorBairro[bNome] = (popPorBairro[bNome]||0) + pop;
             });
 
-            // Mapa Coroplético IBGE
-            L.geoJSON(setoresGeo, {
-                style: function(f) {
-                    const pop = Number(obterValorGeo(f.properties, ['V06002', 'v06002'])) || 0;
-                    const color = pop > 800 ? '#08306b' : pop > 600 ? '#08519c' : pop > 400 ? '#2171b5' : pop > 200 ? '#4292c6' : '#9ecae1';
-                    return { fillColor: color, weight: 0.5, color: '#fff', fillOpacity: 0.75 };
-                },
-                onEachFeature: function(f, layer) {
-                    const props = f.properties || {};
-                    const pop = Number(obterValorGeo(props, ['V06002', 'v06002'])) || 0;
-                    const resp = Number(obterValorGeo(props, ['V06001', 'v06001'])) || 0;
-                    const renda = Number(obterValorGeo(props, ['V06004', 'v06004'])) || 0;
+            document.getElementById('kpi-pop-home').innerText = format(totalMoradoresIBGE);
 
-                    layer.bindPopup(`
-                        <div class="popup" style="font-family:'Inter', sans-serif;">
-                            <div class="popup-title">Setor Censitário IBGE</div>
-                            <div class="popup-total ibge" style="margin-top:0;">
-                                <small>Habitantes (V06002)</small>
-                                <strong>${formatarNumero(pop)}</strong>
-                            </div>
-                            <div class="popup-row" style="margin-top:10px;">
-                                <span class="popup-label">Responsáveis (V06001)</span>
-                                <span class="popup-value">${formatarNumero(resp)}</span>
-                            </div>
-                            <div class="popup-row">
-                                <span class="popup-label">Renda Média (V06004)</span>
-                                <span class="popup-value">R$ ${formatarNumero(renda)}</span>
-                            </div>
-                        </div>
+            // PLOTA SETORES COROPLÉTICO NO MAPA IBGE
+            L.geoJSON(geoSetores, {
+                style: function(f) {
+                    const p = parseNum(getProp(f.properties, ['v06002']));
+                    const c = p>800?'#08306b':p>600?'#08519c':p>400?'#2171b5':p>200?'#4292c6':p>100?'#6baed6':'#9ecae1';
+                    return { fillColor: c, color: '#fff', weight: 0.5, fillOpacity: 0.75 };
+                },
+                onEachFeature: function(f, l) {
+                    const p = f.properties;
+                    const pop = parseNum(getProp(p, ['v06002']));
+                    const resp = parseNum(getProp(p, ['v06001']));
+                    const renda = parseNum(getProp(p, ['v06004']));
+                    
+                    l.bindPopup(`
+                        <div class="pop-title">Setor Censitário</div>
+                        <div class="pop-highlight"><span>Moradores (V06002)</span><strong>${format(pop)}</strong></div>
+                        <div class="pop-row" style="margin-top:12px;"><span>Responsáveis (V06001)</span><strong>${format(resp)}</strong></div>
+                        <div class="pop-row"><span>Renda Média (V06004)</span><strong>R$ ${format(renda)}</strong></div>
                     `);
                 }
-            }).addTo(mapCenso);
-
-            document.getElementById('kpi-populacao-home').textContent = formatarNumero(totalMoradoresIBGE);
-            document.getElementById('kpi-populacao-stats').textContent = formatarNumero(totalMoradoresIBGE);
-            document.getElementById('total-pop-censo').textContent = formatarNumero(totalMoradoresIBGE);
+            }).addTo(mapIBGE);
         }
 
-        /* =====================================================
-           PROCESSA LOCAIS TRE
-        ====================================================== */
-        if (locaisGeo) {
-            locaisGeo.features.forEach(loc => {
-                const props = loc.properties || {};
-                const zona = obterValorGeo(props, ["ZONA_ELE_1", "zona"]);
-                if(zona) zonasUnicas.add(zona);
+        // PROCESSA LOCAIS TRE
+        if(locais) {
+            locais.features.forEach(l => {
+                const p = l.properties;
+                const zona = getProp(p, ["zona_ele_1", "zona"]);
+                if(zona) zonasSet.add(zona);
 
-                let bairroLoc = obterValorGeo(props, ["BAIRRO_1", "bairro"]) || "Outros";
-
-                if (bairrosGeo && loc.geometry) {
+                let bNome = getProp(p, ["bairro_1", "bairro"]) || "Outros";
+                if(geoBairros && l.geometry) {
                     try {
-                        const pt = turf.point(loc.geometry.coordinates);
-                        for (const b of bairrosGeo.features) {
-                            if (turf.booleanPointInPolygon(pt, b)) {
-                                bairroLoc = obterValorGeo(b.properties, ["nome", "bairro"]) || bairroLoc;
-                                break;
+                        const pt = turf.point(l.geometry.coordinates);
+                        for(const b of geoBairros.features) {
+                            if(turf.booleanPointInPolygon(pt, b)) {
+                                bNome = getProp(b.properties, ["nome", "bairro"]) || bNome; break;
                             }
                         }
-                    } catch (e) {}
+                    } catch(e){}
                 }
 
-                const eleitores = Number(obterValorGeo(props, ["TOTAL_EL_1", "total_el_1"])) || 0;
-                eleitoresPorBairro[bairroLoc] = (eleitoresPorBairro[bairroLoc] || 0) + eleitores;
+                const el = parseNum(getProp(p, ["total_el_1"]));
+                elPorBairro[bNome] = (elPorBairro[bNome]||0) + el;
                 
-                const nomeLoc = obterValorGeo(props, ["LOCAL_DE_1"]) || "Local";
-                const latlng = [loc.geometry.coordinates[1], loc.geometry.coordinates[0]];
+                const nomeLoc = getProp(p, ["local_de_1"]) || "Local";
+                const latlng = [l.geometry.coordinates[1], l.geometry.coordinates[0]];
 
-                dadosLocaisOriginais.push({
-                    feature: loc, nome: nomeLoc, endereco: obterValorGeo(props, ["ENDERECO_1"]) || "",
-                    bairro: bairroLoc, zona: zona || "N/A", eleitores: eleitores, latlng: latlng
+                dadosLocais.push({
+                    nome: nomeLoc, end: getProp(p, ["endereco_1"])||"N/A", bairro: bNome,
+                    zona: zona||"N/A", eleitores: el, latlng: latlng
                 });
 
-                // Plota no mapa Censo (Pontos interativos de Raio)
-                const mkCenso = L.circleMarker(latlng, { radius: 6, fillColor: "#f59e0b", color: "#fff", weight: 2, fillOpacity: 1 }).addTo(mapCenso);
-                mkCenso.bindTooltip(`<b>${nomeLoc}</b><br><small>Clique p/ Análise de Raio</small>`, {direction:'top'});
-                mkCenso.on('click', () => clickLocalCenso(latlng, nomeLoc));
+                // Plota Ponto Laranja no mapa IBGE para servir de gatilho pro Raio
+                const mkIBGE = L.circleMarker(latlng, {radius: 5, fillColor: "#f59e0b", color: "#fff", weight: 2, fillOpacity: 1, zIndexOffset: 1000}).addTo(mapIBGE);
+                mkIBGE.bindTooltip(`<b>${nomeLoc}</b><br><small>Clique para calcular Raio</small>`);
+                mkIBGE.on('click', () => abrirBuffer(latlng, nomeLoc));
             });
 
-            // Preenche select
+            // Select Zonas
             const selZona = document.getElementById("filtroZona");
-            Array.from(zonasUnicas).sort().forEach(z => {
-                const opt = document.createElement("option");
-                opt.value = z; opt.textContent = `Zona eleitoral ${z}`;
-                selZona.appendChild(opt);
+            Array.from(zonasSet).sort().forEach(z => {
+                const opt = document.createElement("option"); opt.value = z; opt.innerText = `Zona ${z}`; selZona.appendChild(opt);
             });
         }
 
-        /* =====================================================
-           CAMADA DOS BAIRROS TRE
-        ====================================================== */
-        if (bairrosGeo) {
-            camadaBairrosGlobal = L.geoJSON(bairrosGeo, {
-                style: { color: "#000", weight: 1, fillColor: "transparent", fillOpacity: 0 },
-                interactive: false
-            }).addTo(mapTRE);
+        // Camada base de Bairros no Mapa TRE
+        if(geoBairros) {
+            camadaBairrosTRE = L.geoJSON(geoBairros, { style: { color: "#334155", weight: 1, fillOpacity: 0 }, interactive: false }).addTo(mapTRE);
         }
 
-        // INIT
-        aplicarFiltrosTRE();
-        gerarGraficoBairros();
-        inicializarGraficosDemograficos();
-
-    }).catch(e => {
-        console.error("Erro no load de dados", e);
-        if(document.getElementById("lista-bairros-conteudo")) 
-            document.getElementById("lista-bairros-conteudo").innerHTML = `<div style="padding:25px;text-align:center;color:#ef4444;font-size:11px;">Erro crítico ao carregar dados geográficos.</div>`;
-    });
-
+        document.getElementById("loader").style.display = "none";
+        
+        filtrarTRE();
+        desenharGraficos();
+    }
 
     /* =========================================================
-       FILTRO MAPA TRE
+       LÓGICA MAPA TRE E SIDEBAR
     ========================================================== */
-    function aplicarFiltrosTRE() {
-        if(!document.getElementById("buscaLocal")) return;
-
-        const txt = document.getElementById("buscaLocal").value.toLowerCase().trim();
-        const zona = document.getElementById("filtroZona").value;
-
+    function filtrarTRE() {
+        const txt = document.getElementById("buscaLocal").value.toLowerCase();
+        const z = document.getElementById("filtroZona").value;
+        
         camadasLocaisGrupo.clearLayers();
-        const elPorBairro = {}; const locPorBairro = {};
-        let tExibidos = 0; let tEleitores = 0;
+        const distEl = {}; const distLoc = {};
+        let tLoc = 0; let tEl = 0;
 
-        dadosLocaisOriginais.forEach(it => {
-            if ((!txt || it.nome.toLowerCase().includes(txt) || it.bairro.toLowerCase().includes(txt)) &&
-                (zona === "TODAS" || String(it.zona) === zona)) {
-                
-                tExibidos++; tEleitores += it.eleitores;
-                if(!elPorBairro[it.bairro]) { elPorBairro[it.bairro] = 0; locPorBairro[it.bairro] = []; }
-                elPorBairro[it.bairro] += it.eleitores;
-                locPorBairro[it.bairro].push(it);
+        dadosLocais.forEach(d => {
+            if((!txt || d.nome.toLowerCase().includes(txt) || d.bairro.toLowerCase().includes(txt)) && (z === "TODAS" || String(d.zona) === z)) {
+                tLoc++; tEl += d.eleitores;
+                if(!distEl[d.bairro]) { distEl[d.bairro]=0; distLoc[d.bairro]=[]; }
+                distEl[d.bairro] += d.eleitores;
+                distLoc[d.bairro].push(d);
 
-                const marker = L.circleMarker(it.latlng, { radius: Math.max(6, Math.min(23, 5+it.eleitores/350)), fillColor: "#2563eb", color: "#fff", weight: 2, fillOpacity: .88 });
-                marker.nomeRef = it.nome;
-                marker.bindPopup(`
-                    <div class="popup">
-                        <div class="popup-title">${escaparHTML(it.nome)}</div>
-                        <div class="popup-row"><span class="popup-label">Bairro</span><span class="popup-value">${escaparHTML(it.bairro)}</span></div>
-                        <div class="popup-row"><span class="popup-label">Zona</span><span class="popup-value">${escaparHTML(it.zona)}</span></div>
-                        <div class="popup-total"><small>Eleitores</small><strong>${formatarNumero(it.eleitores)}</strong></div>
-                    </div>
+                const mk = L.circleMarker(d.latlng, { radius: Math.max(6, Math.min(22, 5+d.eleitores/350)), fillColor: "#2563eb", color: "#fff", weight: 2, fillOpacity: 0.85 });
+                mk.nomeRef = d.nome;
+                mk.bindPopup(`
+                    <div class="pop-title">${d.nome}</div>
+                    <div class="pop-row"><span>Bairro</span><strong>${d.bairro}</strong></div>
+                    <div class="pop-row"><span>Zona</span><strong>${d.zona}</strong></div>
+                    <div class="pop-highlight" style="background:#eff6ff;"><span>Eleitores (TRE)</span><strong style="color:#2563eb;">${format(d.eleitores)}</strong></div>
                 `);
-                camadasLocaisGrupo.addLayer(marker);
+                camadasLocaisGrupo.addLayer(mk);
             }
         });
 
-        if(document.getElementById("contador-resultados")) document.getElementById("contador-resultados").textContent = `${tExibidos} locais`;
-        if(document.getElementById("contador-bairros")) document.getElementById("contador-bairros").textContent = `${Object.keys(elPorBairro).length} bairros`;
-        if(document.getElementById("mapStatusValue")) document.getElementById("mapStatusValue").textContent = formatarNumero(tEleitores);
-        if(document.getElementById("mapStatusSub")) document.getElementById("mapStatusSub").textContent = `${tExibidos} locais exibidos`;
+        document.getElementById("tre-resumo").innerText = `${tLoc} locais | ${format(tEl)} eleitores`;
 
-        // Renderiza lista na sidebar TRE
-        const container = document.getElementById("lista-bairros-conteudo");
-        const ordenados = Object.entries(elPorBairro).sort((a,b) => b[1]-a[1]);
-        if(!ordenados.length) { container.innerHTML = "<div style='padding:30px; text-align:center; font-size:12px; color:#64748b;'>Nenhum local de votação atende ao filtro.</div>"; return; }
-
-        let html = "";
-        ordenados.forEach(([b, total]) => {
-            const locs = locPorBairro[b].sort((x,y) => y.eleitores - x.eleitores);
-            let htmlLoc = "";
-            locs.forEach(l => {
-                htmlLoc += `<div class="local-subitem" onclick="event.stopPropagation(); focarLocalTRE('${escaparHTML(l.nome)}')"><span class="local-name">${escaparHTML(l.nome)}</span><span class="local-value">${formatarNumero(l.eleitores)}</span></div>`;
-            });
-            const popCenso = populacaoPorBairro[b] || 0;
-            html += `
-                <div class="bairro-item" onclick="focarBairroTRE('${escaparHTML(b)}', this)">
-                    <div class="bairro-linha"><div class="bairro-info"><div class="bairro-nome">${escaparHTML(b)}</div></div>
-                    <div class="bairro-badges"><span class="badge purple">${formatarNumero(popCenso)} hab</span><span class="badge blue">${formatarNumero(total)} el</span></div></div>
-                    <div class="locais-container">${htmlLoc}</div>
-                </div>`;
+        const htmlArr = Object.entries(distEl).sort((a,b)=>b[1]-a[1]).map(([b, total]) => {
+            const ls = distLoc[b].sort((a,b)=>b.eleitores - a.eleitores).map(l => 
+                `<div class="sub-item" onclick="event.stopPropagation(); focarLocalTRE('${l.nome}')"><span>${l.nome}</span><strong>${format(l.eleitores)}</strong></div>`
+            ).join('');
+            const pCenso = popPorBairro[b] || 0;
+            return `
+                <div class="list-item" onclick="focarBairroTRE('${b}', this)">
+                    <div style="display:flex; justify-content:space-between;"><span class="item-title">${b}</span></div>
+                    <div class="item-badges"><span class="badge purple">${format(pCenso)} hab.</span><span class="badge blue">${format(total)} el.</span></div>
+                    <div class="sub-list">${ls}</div>
+                </div>
+            `;
         });
-        container.innerHTML = html;
+        document.getElementById("lista-tre").innerHTML = htmlArr.join('') || "<div style='padding:20px;text-align:center;font-size:12px;color:gray;'>Nenhum resultado.</div>";
+    }
+
+    function resetarTRE() {
+        document.querySelectorAll(".list-item").forEach(e=>e.classList.remove("active"));
+        if(camadaBairrosTRE) camadaBairrosTRE.eachLayer(l=>l.setStyle({color: "#334155", weight: 1, fillOpacity: 0}));
+        mapTRE.setView([-26.91, -48.66], 13);
     }
 
     function focarBairroTRE(n, el) {
-        document.querySelectorAll(".bairro-item").forEach(e => e.classList.remove("ativo"));
-        if(el) el.classList.add("ativo");
-        if(!camadaBairrosGlobal) return;
-
-        camadaBairrosGlobal.eachLayer(layer => {
-            layer.setStyle({color: "#000", weight: 1, fillColor: "transparent"});
-            const nGeo = obterValorGeo(layer.feature.properties, ["nome", "bairro"]);
-            if(nGeo && nGeo.toLowerCase() === n.toLowerCase()) {
-                layer.setStyle({color: "#1d4ed8", weight: 3, fillColor: "#3b82f6", fillOpacity: 0.2});
-                layer.bringToFront();
-                mapTRE.fitBounds(layer.getBounds(), {padding: [70,70], maxZoom: 16});
+        document.querySelectorAll(".list-item").forEach(e=>e.classList.remove("active"));
+        el.classList.add("active");
+        if(!camadaBairrosTRE) return;
+        camadaBairrosTRE.eachLayer(l => {
+            l.setStyle({color: "#334155", weight: 1, fillOpacity: 0});
+            if(getProp(l.feature.properties, ["nome", "bairro"]) === n) {
+                l.setStyle({color: "#2563eb", weight: 3, fillColor: "#38bdf8", fillOpacity: 0.15});
+                l.bringToFront();
+                mapTRE.fitBounds(l.getBounds(), {padding: [50,50]});
             }
         });
     }
 
     function focarLocalTRE(n) {
-        camadasLocaisGrupo.eachLayer(layer => {
-            if(layer.nomeRef === n) {
-                mapTRE.setView(layer.getLatLng(), 17);
-                setTimeout(()=>layer.openPopup(), 400);
-            }
+        camadasLocaisGrupo.eachLayer(l => {
+            if(l.nomeRef === n) { mapTRE.setView(l.getLatLng(), 17); setTimeout(()=>l.openPopup(),300); }
         });
     }
 
-    // =========================================================
-    // LÓGICA DE BUFFER (CENSO)
-    // =========================================================
-    function clickLocalCenso(latlng, nome) {
-        censoSelectedLatLng = latlng;
-        document.getElementById("buffer-panel").style.display = "block";
-        document.getElementById("buffer-local-name").innerText = nome;
-        updateBuffer();
-        mapCenso.setView(latlng, 14);
+    /* =========================================================
+       LÓGICA DE RAIO / BUFFER IBGE (Turf Seguro)
+    ========================================================== */
+    function abrirBuffer(latlng, nome) {
+        bufferLatLng = latlng;
+        document.getElementById("buffer-tool").style.display = "block";
+        document.getElementById("buffer-escola").innerText = nome;
+        mapIBGE.setView(latlng, 15);
+        atualizarBuffer();
     }
 
-    function updateBuffer() {
-        if(!geojsonSetoresOriginal) return;
-        const raioMetros = parseInt(document.getElementById("buffer-slider").value);
-        document.getElementById("buffer-radius-val").innerText = raioMetros + "m";
+    function fecharBuffer() {
+        document.getElementById("buffer-tool").style.display = "none";
+        if(bufferCircle) mapIBGE.removeLayer(bufferCircle);
+        mapIBGE.setView([-26.91, -48.66], 13);
+    }
 
-        if (censoBufferLayer) mapCenso.removeLayer(censoBufferLayer);
-        censoBufferLayer = L.circle(censoSelectedLatLng, {
-            radius: raioMetros, color: '#f59e0b', fillColor: '#f59e0b', fillOpacity: 0.25, weight: 2
-        }).addTo(mapCenso);
+    function atualizarBuffer() {
+        if(!geoSetores || !bufferLatLng) return;
+        const raioM = parseInt(document.getElementById("buffer-slider").value);
+        document.getElementById("buffer-raio").innerText = raioM + "m";
 
-        const pt = turf.point([censoSelectedLatLng.lng, censoSelectedLatLng.lat]);
-        const buff = turf.buffer(pt, raioMetros / 1000, {units: 'kilometers'});
+        if(bufferCircle) mapIBGE.removeLayer(bufferCircle);
+        bufferCircle = L.circle(bufferLatLng, { radius: raioM, color: '#f59e0b', fillColor: '#f59e0b', fillOpacity: 0.25, weight: 2, interactive: false }).addTo(mapIBGE);
+
+        const pt = turf.point([bufferLatLng.lng, bufferLatLng.lat]);
+        const buff = turf.buffer(pt, raioM/1000, {units: 'kilometers'});
         
         let estimativaPop = 0;
         
-        geojsonSetoresOriginal.features.forEach(sec => {
-            const pop = Number(obterValorGeo(sec.properties, ['V06002', 'v06002'])) || 0;
-            if (pop === 0) return;
+        geoSetores.features.forEach(sec => {
+            const pop = parseNum(getProp(sec.properties, ['v06002']));
+            if(pop <= 0) return;
 
-            if (turf.booleanIntersects(buff, sec)) {
+            if(turf.booleanIntersects(buff, sec)) {
                 try {
-                    // Usar a funcão apropriada do Turf.js 6 para intersecção (dois poligonos separados)
-                    const intersect = turf.intersect(buff, sec);
-                    if (intersect) {
-                        const areaSec = turf.area(sec);
-                        const areaInt = turf.area(intersect);
-                        estimativaPop += (pop * (areaInt / areaSec));
+                    // Turf intersect syntax for v6
+                    const inter = turf.intersect(buff, sec);
+                    if(inter) {
+                        const aSec = turf.area(sec);
+                        const aInt = turf.area(inter);
+                        estimativaPop += pop * (aInt / aSec);
                     }
                 } catch(e) {
-                    // Fallback para geometria muito complexa
-                    if (turf.booleanPointInPolygon(turf.centroid(sec), buff)) estimativaPop += pop;
+                    // Fallback seguro se a topologia falhar
+                    if(turf.booleanPointInPolygon(turf.centroid(sec), buff)) estimativaPop += pop;
                 }
             }
         });
-
-        document.getElementById("buffer-pop-val").innerText = formatarNumero(Math.round(estimativaPop));
+        document.getElementById("buffer-resultado").innerText = format(Math.round(estimativaPop));
     }
 
-
-    // =========================================================
-    // CHARTS (Gráficos)
-    // =========================================================
-    function gerarGraficoBairros() {
-        const bairrosOrdenados = Object.keys(eleitoresPorBairro).sort((a, b) => eleitoresPorBairro[b] - eleitoresPorBairro[a]);
-        if(!bairrosOrdenados.length) return;
-
-        const dataEl = []; const dataPop = [];
-        bairrosOrdenados.forEach(b => {
-            dataEl.push(eleitoresPorBairro[b] || 0);
-            dataPop.push(populacaoPorBairro[b] || 0);
-        });
-        
-        const canvas = document.getElementById("chartBairrosDinamico");
-        document.getElementById("bairroChartContainer").style.height = Math.max(450, bairrosOrdenados.length*35)+"px";
-        if(graficoBairros) graficoBairros.destroy();
-        
-        graficoBairros = new Chart(canvas, {
-            type: "bar",
-            data: { 
-                labels: bairrosOrdenados, 
-                datasets: [
-                    { label:"Moradores (IBGE)", data: dataPop, backgroundColor: "#8b5cf6", borderRadius:4, barPercentage: 0.85 },
-                    { label:"Eleitores (TRE)", data: dataEl, backgroundColor: "#2563eb", borderRadius:4, barPercentage: 0.85 }
-                ] 
-            },
-            options: { 
-                indexAxis: "y", responsive: true, maintainAspectRatio: false, 
-                interaction: { mode: 'index', intersect: false },
-                plugins: { 
-                    legend: {display:true, position: 'top'}, 
-                    datalabels: { anchor:'end', align:'right', color:'#334', font:{size:9, weight:'bold'}, formatter: v => formatarNumero(v) } 
-                }, 
-                scales: { x:{grid:{display:false}, ticks:{display:false}}, y:{grid:{display:false}} } 
-            }
-        });
-    }
-
-    function inicializarGraficosDemograficos() {
+    /* =========================================================
+       GRÁFICOS
+    ========================================================== */
+    function desenharGraficos() {
         Chart.register(ChartDataLabels);
-        const cfgBase = { responsive:true, maintainAspectRatio:false, plugins: { legend:{display:false}, datalabels:{color:'#334', font:{size:10, weight:'700'}, formatter: v=>formatarNumero(v)} }, scales:{ x:{grid:{color:'#f1f5f9'}}, y:{grid:{display:false}} } };
+        const cfg = { responsive:true, maintainAspectRatio:false, plugins: { legend:{display:false}, datalabels:{color:'#334155', font:{weight:'bold', size:10}, formatter: v=>format(v)} }, scales:{ x:{grid:{display:false}}, y:{grid:{display:false}} } };
 
-        new Chart(document.getElementById("chartGenero"), { type: "doughnut", data: { labels: ["Feminino", "Masculino"], datasets: [{ data: [96639, 85485], backgroundColor: ["#38bdf8", "#1e3a8a"], borderWidth:0 }] }, options: { responsive:true, maintainAspectRatio:false, cutout:"68%", plugins: { legend:{display:true, position:"bottom"}, datalabels:{color:'#fff', font:{weight:'800', size:11}, formatter: v=>formatarNumero(v)} } } });
-        new Chart(document.getElementById("chartTipoVoto"), { type: "bar", data: { labels: ["Obrigatório", "Facultativo"], datasets: [{ data: [167134, 14990], backgroundColor: "#2563eb", borderRadius:5 }] }, options: cfgBase });
-        new Chart(document.getElementById("chartInstrucao"), { type: "bar", data: { labels: ["Ens. Médio Comp.", "Superior Comp.", "Ens. Médio Incomp.", "Ens. Fund. Incomp.", "Superior Incomp.", "Ens. Fund. Comp.", "Lê e Escreve", "Analfabeto"], datasets: [{ data: [57135, 33157, 26285, 25565, 21082, 14651, 2915, 1334], backgroundColor: "#38bdf8", borderRadius:5 }] }, options: { ...cfgBase, indexAxis:"y" } });
-        new Chart(document.getElementById("chartFaixaEtaria"), { type: "bar", data: { labels: ["16–20", "21–29", "30–39", "40–49", "50–59", "60–69", "70–79", "80+"], datasets: [{ data: [8722, 30778, 40169, 40011, 28136, 21443, 10716, 2103], backgroundColor: "#2563eb", borderRadius:5 }] }, options: cfgBase });
+        // GRÁFICO COMPARATIVO BAIRROS
+        const keys = Object.keys(elPorBairro).sort((a,b)=>elPorBairro[b]-elPorBairro[a]);
+        const dPop = []; const dEl = [];
+        keys.forEach(k => { dPop.push(popPorBairro[k]||0); dEl.push(elPorBairro[k]||0); });
+        
+        document.getElementById("bairroChartContainer").style.height = Math.max(500, keys.length*40)+"px";
+        new Chart(document.getElementById("chartBairros"), {
+            type: "bar",
+            data: { labels: keys, datasets: [
+                { label: "Moradores IBGE", data: dPop, backgroundColor: "#8b5cf6", borderRadius: 4 },
+                { label: "Eleitores TRE", data: dEl, backgroundColor: "#2563eb", borderRadius: 4 }
+            ]},
+            options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, plugins: { legend:{display:true, position:'top'}, datalabels: {anchor:'end', align:'right', color:'#334', font:{size:9, weight:'bold'}, formatter:v=>format(v)} }, scales:{ x:{display:false}, y:{grid:{display:false}, ticks:{font:{weight:'600'}}} } }
+        });
+
+        // DEMOGRÁFICOS
+        new Chart(document.getElementById("chartGenero"), { type: "doughnut", data: { labels: ["Feminino", "Masculino"], datasets: [{ data: [96639, 85485], backgroundColor: ["#0ea5e9", "#1e293b"], borderWidth:0 }] }, options: { responsive:true, maintainAspectRatio:false, cutout:"65%", plugins:{ legend:{display:true, position:'bottom'}, datalabels:{color:'#fff', font:{size:12, weight:'bold'}, formatter:v=>format(v)} } } });
+        new Chart(document.getElementById("chartIdade"), { type: "bar", data: { labels: ["16-20", "21-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80+"], datasets: [{ data: [8722, 30778, 40169, 40011, 28136, 21443, 10716, 2103], backgroundColor: "#2563eb", borderRadius:4 }] }, options: cfg });
+        new Chart(document.getElementById("chartInstrucao"), { type: "bar", data: { labels: ["Ens. Médio Comp.", "Superior Comp.", "Ens. Médio Incomp.", "Ens. Fund. Incomp.", "Superior Incomp.", "Ens. Fund. Comp.", "Lê e Escreve", "Analfabeto"], datasets: [{ data: [57135, 33157, 26285, 25565, 21082, 14651, 2915, 1334], backgroundColor: "#0ea5e9", borderRadius:4 }] }, options: { ...cfg, indexAxis: 'y', plugins: { legend:{display:false}, datalabels:{anchor:'end', align:'right'} }, scales:{x:{display:false}, y:{grid:{display:false}}} } });
     }
+
+    // Inicialização direta
+    init();
+
 </script>
 
 </body>
