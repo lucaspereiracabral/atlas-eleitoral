@@ -1,0 +1,32 @@
+name: Harden Private Data
+
+on:
+  push:
+    paths:
+      - 'scripts/harden_private_data.py'
+      - '.github/workflows/harden-private-data.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Patch index.html
+        run: python scripts/harden_private_data.py
+
+      - name: Commit hardened Atlas
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "No changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Protect Atlas data with Supabase RLS"
+          git push
