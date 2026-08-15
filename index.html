@@ -1883,6 +1883,25 @@ body:not(.auth-locked) #auth-gate { display: none; }
     }
 
     async function verificarSessaoAtlas() {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get("code");
+
+            if (code) {
+                const { error: exchangeError } = await supabaseClient.auth.exchangeCodeForSession(code);
+
+                if (exchangeError) {
+                    console.error("Erro ao trocar code OAuth por sessão:", exchangeError);
+                    setAuthMessage("Falha ao concluir o login com Google.");
+                } else {
+                    const cleanUrl = window.location.origin + window.location.pathname;
+                    window.history.replaceState({}, document.title, cleanUrl);
+                }
+            }
+        } catch (e) {
+            console.error("Erro ao processar retorno OAuth:", e);
+        }
+
         const { data: { session }, error } = await supabaseClient.auth.getSession();
         if (error) {
             console.error("Erro ao verificar sessão:", error);
