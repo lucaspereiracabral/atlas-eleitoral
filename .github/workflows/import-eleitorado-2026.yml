@@ -47,7 +47,7 @@ jobs:
           numeric = {'ano_eleicao','qtd_biometria','qtd_deficiencia','qtd_nome_social','qtd_eleitores','qtd_voto_facultativo','qtd_voto_facultativo_deficiencia','qtd_voto_obrigatorio','qtd_voto_obrigatorio_deficiencia'}
 
           rows=[]
-          with path.open(encoding='utf-8-sig', newline='') as f:
+          with path.open(encoding='cp1252', newline='') as f:
             reader=csv.DictReader(f, delimiter=';')
             for r in reader:
               out={}
