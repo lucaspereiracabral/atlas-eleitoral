@@ -1,0 +1,1850 @@
+<!DOCTYPE html>
+
+<html lang="pt-BR">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>Rastreamento de Equipes - Itajaí</title>
+
+    
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    
+
+    <style>
+
+        * { box-sizing: border-box; }
+
+
+
+        body, html { 
+
+            margin: 0.00; 
+
+            padding: 0.00; 
+
+            height: 100.00%; 
+
+            font-family: Arial, sans-serif; 
+
+            background-color: #f4f4f9;
+
+        }
+
+        
+
+        #container { 
+
+            display: flex; 
+
+            flex-direction: row;
+
+            height: 100.00vh; 
+
+            width: 100.00%; 
+
+        }
+
+        
+
+        #sidebar { 
+
+            width: 450.00px; 
+
+            background: #ffffff; 
+
+            padding: 20.00px; 
+
+            overflow-y: auto; 
+
+            box-shadow: 2.00px 0.00 10.00px rgba(0,0,0,0.10); 
+
+            z-index: 1000; 
+
+            display: flex;
+
+            flex-direction: column;
+
+        }
+
+
+
+        #sidebar h2 {
+
+            margin-top: 0.00;
+
+            margin-bottom: 10.00px;
+
+            font-size: 1.50em;
+
+            color: #333;
+
+        }
+
+
+
+        .status-conexao {
+
+            font-size: 0.85em;
+
+            font-weight: bold;
+
+            padding: 8.00px;
+
+            border-radius: 4.00px;
+
+            margin-bottom: 12.00px;
+
+            text-align: center;
+
+            border: 1.00px solid transparent;
+
+            transition: all 0.30s ease;
+
+        }
+
+
+
+        .conexao-online { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
+
+        .conexao-offline { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+
+
+
+        .filtros-painel {
+
+            background: #f8fafc;
+
+            border-radius: 6.00px;
+
+            padding: 12.00px;
+
+            margin-bottom: 15.00px;
+
+            border: 1.00px solid #e2e8f0;
+
+        }
+
+
+
+        .filtro-grupo {
+
+            margin-bottom: 8.00px;
+
+        }
+
+        .filtro-grupo:last-child {
+
+            margin-bottom: 0.00;
+
+        }
+
+
+
+        .filtro-grupo label {
+
+            display: block;
+
+            font-size: 0.80em;
+
+            font-weight: bold;
+
+            color: #4a5568;
+
+            margin-bottom: 3.00px;
+
+            text-transform: uppercase;
+
+        }
+
+
+
+        .filtro-select {
+
+            width: 100.00%;
+
+            padding: 7.00px;
+
+            border: 1.00px solid #cbd5e0;
+
+            border-radius: 4.00px;
+
+            font-size: 0.90em;
+
+            background-color: #fff;
+
+            color: #2d3748;
+
+        }
+
+
+
+        .grafico-painel {
+
+            background: #f8fafc;
+
+            border-radius: 6.00px;
+
+            padding: 12.00px;
+
+            margin-bottom: 15.00px;
+
+            border: 1.00px solid #e2e8f0;
+
+        }
+
+        .grafico-titulo {
+
+            font-size: 0.80em;
+
+            font-weight: bold;
+
+            color: #4a5568;
+
+            margin-bottom: 8.00px;
+
+            text-transform: uppercase;
+
+            text-align: center;
+
+        }
+
+        .grafico-container {
+
+            position: relative;
+
+            height: 160.00px;
+
+            width: 100.00%;
+
+        }
+
+
+
+        .resumo-painel {
+
+            background: #f8fafc;
+
+            border-radius: 6.00px;
+
+            padding: 12.00px;
+
+            margin-bottom: 15.00px;
+
+            border: 1.00px solid #e2e8f0;
+
+        }
+
+        
+
+        .resumo-total {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            font-size: 1.20em;
+
+            font-weight: bold;
+
+            color: #2d3748;
+
+            margin-bottom: 10.00px;
+
+            padding-bottom: 10.00px;
+
+            border-bottom: 1.00px solid #cbd5e0;
+
+        }
+
+        
+
+        .resumo-linha {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            gap: 6.00px;
+
+        }
+
+        
+
+        .resumo-box {
+
+            flex: 1.00;
+
+            text-align: center;
+
+            padding: 6.00px;
+
+            border-radius: 4.00px;
+
+            font-weight: bold;
+
+            font-size: 0.80em;
+
+        }
+
+        
+
+        .resumo-inicial   { background-color: #fff3cd; color: #856404; border: 1.00px solid #ffeeba; }
+
+        .resumo-movimento { background-color: #d4edda; color: #155724; border: 1.00px solid #c3e6cb; }
+
+        .resumo-parado    { background-color: #cce5ff; color: #004085; border: 1.00px solid #b8daff; }
+
+
+
+        #map { flex-grow: 1.00; height: 100.00%; }
+
+
+
+        .status-group { margin-bottom: 25.00px; }
+
+        
+
+        .status-title { 
+
+            color: white; 
+
+            padding: 8.00px 12.00px; 
+
+            border-radius: 4.00px; 
+
+            font-size: 1.10em;
+
+            margin-bottom: 15.00px;
+
+            text-transform: uppercase;
+
+            font-weight: bold;
+
+        }
+
+
+
+        .grid-viaturas {
+
+            display: grid;
+
+            grid-template-columns: 1fr 1fr; 
+
+            gap: 15.00px;
+
+        }
+
+
+
+        .viatura-card { 
+
+            background: #ffffff; 
+
+            padding: 12.00px; 
+
+            border-radius: 6.00px; 
+
+            border-left: 5.00px solid #6c757d; 
+
+            box-shadow: 0.00 1.00px 4.00px rgba(0,0,0,0.15); 
+
+            cursor: pointer; 
+
+            transition: transform 0.20s, box-shadow 0.20s;
+
+        }
+
+
+
+        .viatura-card:hover {
+
+            transform: translateY(-2.00px);
+
+            box-shadow: 0.00 4.00px 8.00px rgba(0,0,0,0.20);
+
+        }
+
+        
+
+        .viatura-nome { 
+
+            font-weight: bold; 
+
+            font-size: 1.00em; 
+
+            color: #2d3748;
+
+            margin-bottom: 8.00px; 
+
+        }
+
+        
+
+        .viatura-info { 
+
+            font-size: 0.85em; 
+
+            color: #4a5568; 
+
+            line-height: 1.40;
+
+        }
+
+
+
+        .alerta-sem-id {
+
+            background-color: #fee2e2 !important; 
+
+            animation: pisca-alerta 2.00s infinite;
+
+        }
+
+
+
+        .alerta-sem-id .viatura-nome { color: #dc2626 !important; font-weight: 900; }
+
+
+
+        @keyframes pisca-alerta {
+
+            0% { box-shadow: 0.00 1.00px 3.00px rgba(220,38,38,0.20); }
+
+            50% { box-shadow: 0.00 1.00px 15.00px rgba(220,38,38,0.60); }
+
+            100% { box-shadow: 0.00 1.00px 3.00px rgba(220,38,38,0.20); }
+
+        }
+
+
+
+        .custom-div-icon { background: transparent; border: none; }
+
+
+
+        .label-viatura {
+
+            background-color: rgba(255, 255, 255, 0.95);
+
+            border: 1.00px solid #ccc;
+
+            border-radius: 4.00px;
+
+            color: #2d3748;
+
+            font-weight: bold;
+
+            font-size: 11.00px;
+
+            padding: 3.00px 6.00px;
+
+            box-shadow: 0.00 1.00px 3.00px rgba(0,0,0,0.30);
+
+            white-space: nowrap;
+
+            pointer-events: none; 
+
+        }
+
+
+
+        .label-alerta { background-color: #fee2e2; color: #dc2626; border-color: #dc2626; }
+
+
+
+        .painel-desselecionar {
+
+            background: white;
+
+            padding: 5.00px;
+
+            border-radius: 4.00px;
+
+            box-shadow: 0.00 1.00px 5.00px rgba(0,0,0,0.40);
+
+            display: none; 
+
+        }
+
+
+
+        .btn-desselecionar {
+
+            background-color: #dc3545;
+
+            color: white;
+
+            border: none;
+
+            border-radius: 3.00px;
+
+            padding: 6.00px 10.00px;
+
+            font-weight: bold;
+
+            font-size: 11.00px;
+
+            cursor: pointer;
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 4.00px;
+
+        }
+
+        
+
+        .btn-desselecionar:hover { background-color: #bd2130; }
+
+
+
+        @media (max-width: 768.00px) {
+
+            #container { flex-direction: column; }
+
+            #sidebar { width: 100.00%; height: 50.00vh; order: 2; padding: 15.00px; }
+
+            #map { width: 100.00%; height: 50.00vh; order: 1; }
+
+            .grid-viaturas { grid-template-columns: 1fr; }
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+
+
+    <div id="container">
+
+        <div id="sidebar">
+
+            <h2>Equipes em Campo</h2>
+
+            <div id="indicador-conexao" class="status-conexao conexao-online">
+
+                Aguardando dados...
+
+            </div>
+
+            
+
+            <div class="filtros-painel">
+
+                <div class="filtro-grupo">
+
+                    <label for="filtro-viatura">Filtrar Viatura:</label>
+
+                    <select id="filtro-viatura" class="filtro-select" onchange="aplicarFiltrosManuais()">
+
+                        <option value="TODAS">Todas as viaturas</option>
+
+                    </select>
+
+                </div>
+
+                <div class="filtro-grupo" style="margin-top: 8.00px;">
+
+                    <label for="filtro-bairro">Filtrar por Bairro:</label>
+
+                    <select id="filtro-bairro" class="filtro-select" onchange="aplicarFiltrosManuais()">
+
+                        <option value="TODOS">Todos os bairros ativos</option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="grafico-painel">
+
+                <div class="grafico-titulo">Equipes por Bairro (Ativos)</div>
+
+                <div class="grafico-container">
+
+                    <canvas id="graficoBairros"></canvas>
+
+                </div>
+
+            </div>
+
+
+
+            <div id="lista-viaturas">
+
+                Carregando mapa...
+
+            </div>
+
+        </div>
+
+        <div id="map"></div>
+
+    </div>
+
+
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-polyline-decorator/1.1.0/leaflet.polylineDecorator.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    
+
+    <script>
+
+        const camadaRuas = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+
+            maxZoom: 19.00,
+
+            attribution: '© OpenStreetMap contributors'
+
+        });
+
+
+
+        const camadaSatelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+
+            maxZoom: 19.00,
+
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+
+        });
+
+
+
+        const map = L.map('map', {
+
+            center: [-26.91, -48.66],
+
+            zoom: 13.00,
+
+            layers: [camadaRuas]
+
+        });
+
+
+
+        const camadasBase = {
+
+            "Mapa (Ruas)": camadaRuas,
+
+            "Satélite": camadaSatelite
+
+        };
+
+        L.control.layers(camadasBase).addTo(map);
+
+
+
+        const URL_RASTREAMENTO = "https://arcgis.itajai.sc.gov.br/server/rest/services/Hosted/rastrear_view/FeatureServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&f=geojson";
+
+        const URL_BAIRROS = "https://arcgis.itajai.sc.gov.br/server/rest/services/divis%C3%A3o_administrativa/FeatureServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&f=geojson";
+
+        
+
+        let camadaRastreamento;
+
+        let camadaDecoradores = L.layerGroup().addTo(map); 
+
+        let camadaLabels = L.layerGroup().addTo(map); 
+
+        
+
+        let dicionarioCamadas = {}; 
+
+        let historicoParadas = {}; 
+
+        let temposInicio = {}; 
+
+        let idSelecionado = null; 
+
+        let primeiraCarga = true;
+
+        let cacheFeatures = [];
+
+        let geoJsonBairros = null;
+
+        let graficoInstancia = null;
+
+
+
+        const LIMITE_PARADO_MS = 5.00 * 60.00 * 1000.00;
+
+
+
+        const controleDesselecao = L.control({ position: 'topleft' });
+
+        controleDesselecao.onAdd = function() {
+
+            const div = L.DomUtil.create('div', 'painel-desselecionar');
+
+            div.id = "area-desselecionar";
+
+            div.innerHTML = `<button class="btn-desselecionar" onclick="desmarcarSelecao()">❌ Desmarcar Equipe</button>`;
+
+            L.DomEvent.disableClickPropagation(div);
+
+            return div;
+
+        };
+
+        controleDesselecao.addTo(map);
+
+
+
+        async function carregarBairros() {
+
+            try {
+
+                const resposta = await fetch(URL_BAIRROS);
+
+                geoJsonBairros = await resposta.json();
+
+            } catch (e) {
+
+                console.error("Erro ao carregar camada de bairros:", e);
+
+            }
+
+        }
+
+
+
+        // EXTRATOR BLINDADO DE COORDENADA ATUAL: Pega estritamente o último ponto da geometria GeoJSON (Posição Atual do GPS)
+
+        function obterUltimaCoordenada(feature) {
+
+            const coords = feature.geometry && feature.geometry.coordinates;
+
+            if (!coords) return null;
+
+
+
+            if (feature.geometry.type === "LineString" && Array.isArray(coords) && coords.length > 0) {
+
+                const ultimo = coords[coords.length - 1];
+
+                if (Array.isArray(ultimo) && ultimo.length >= 2) {
+
+                    return { lon: ultimo[0], lat: ultimo[1] };
+
+                }
+
+            }
+
+
+
+            let arr = coords;
+
+            while (Array.isArray(arr) && arr.length > 0) {
+
+                if (typeof arr[0] === 'number' && arr.length >= 2) {
+
+                    return { lon: arr[0], lat: arr[1] };
+
+                }
+
+                arr = arr[arr.length - 1];
+
+            }
+
+            return null;
+
+        }
+
+
+
+        function identificarBairroDaFeature(feature) {
+
+            if (!geoJsonBairros) return "Desconhecido";
+
+            
+
+            const ultimaCoord = obterUltimaCoordenada(feature);
+
+            if (!ultimaCoord) return "Desconhecido";
+
+            
+
+            try {
+
+                const pontoTurf = turf.point([ultimaCoord.lon, ultimaCoord.lat]);
+
+                for (const bairroFeat of geoJsonBairros.features) {
+
+                    if (turf.booleanPointInPolygon(pontoTurf, bairroFeat)) {
+
+                        const bProps = bairroFeat.properties;
+
+                        return bProps.nome || bProps.bairro || bProps.NOME || bProps.NOME_BAIRRO || "Região sem nome";
+
+                    }
+
+                }
+
+            } catch (e) {}
+
+
+
+            return "Outras Áreas";
+
+        }
+
+
+
+        function atualizarSelectBairrosComAtivos(featuresAtivas) {
+
+            const selectBairro = document.getElementById('filtro-bairro');
+
+            const valorAtual = selectBairro.value;
+
+
+
+            const bairrosComViaturas = [];
+
+            featuresAtivas.forEach(f => {
+
+                const bairro = identificarBairroDaFeature(f);
+
+                if (!bairrosComViaturas.includes(bairro)) {
+
+                    bairrosComViaturas.push(bairro);
+
+                }
+
+            });
+
+
+
+            bairrosComViaturas.sort();
+
+
+
+            selectBairro.innerHTML = `<option value="TODOS">Todos os bairros ativos</option>`;
+
+            bairrosComViaturas.forEach(bairro => {
+
+                const opt = document.createElement('option');
+
+                opt.value = bairro;
+
+                opt.textContent = bairro;
+
+                selectBairro.appendChild(opt);
+
+            });
+
+
+
+            if (valorAtual && (valorAtual === "TODOS" || bairrosComViaturas.includes(valorAtual))) {
+
+                selectBairro.value = valorAtual;
+
+            } else {
+
+                selectBairro.value = "TODOS";
+
+            }
+
+        }
+
+
+
+        function atualizarGrafico(featuresAtivas) {
+
+            const contagemBairros = {};
+
+
+
+            featuresAtivas.forEach(f => {
+
+                const bairro = identificarBairroDaFeature(f);
+
+                contagemBairros[bairro] = (contagemBairros[bairro] || 0.00) + 1.00;
+
+            });
+
+
+
+            const labels = Object.keys(contagemBairros);
+
+            const dados = labels.map(b => contagemBairros[b]);
+
+
+
+            const ctx = document.getElementById('graficoBairros').getContext('2d');
+
+            
+
+            if (graficoInstancia) {
+
+                graficoInstancia.data.labels = labels;
+
+                graficoInstancia.data.datasets[0].data = dados;
+
+                graficoInstancia.update();
+
+            } else {
+
+                graficoInstancia = new Chart(ctx, {
+
+                    type: 'bar',
+
+                    data: {
+
+                        labels: labels,
+
+                        datasets: [{
+
+                            label: 'Equipes',
+
+                            data: dados,
+
+                            backgroundColor: '#007bff',
+
+                            borderRadius: 4.00
+
+                        }]
+
+                    },
+
+                    options: {
+
+                        responsive: true,
+
+                        maintainAspectRatio: false,
+
+                        plugins: {
+
+                            legend: { display: false }
+
+                        },
+
+                        scales: {
+
+                            y: {
+
+                                beginAtZero: true,
+
+                                ticks: { stepSize: 1.00, font: { size: 10.00 } }
+
+                            },
+
+                            x: {
+
+                                ticks: { font: { size: 10.00 } }
+
+                            }
+
+                        }
+
+                    }
+
+                });
+
+            }
+
+        }
+
+
+
+        function popularSelectViatras(features) {
+
+            const selectViatura = document.getElementById('filtro-viatura');
+
+            const valorAtual = selectViatura.value;
+
+            
+
+            selectViatura.innerHTML = `<option value="TODAS">Todas as viaturas</option>`;
+
+
+
+            const nomesUnicos = [];
+
+            features.forEach(f => {
+
+                const nome = f.properties.nome;
+
+                if (nome && nome.trim() !== "" && !nomesUnicos.includes(nome)) {
+
+                    nomesUnicos.push(nome);
+
+                }
+
+            });
+
+
+
+            nomesUnicos.sort().forEach(nome => {
+
+                const opt = document.createElement('option');
+
+                opt.value = nome;
+
+                opt.textContent = nome;
+
+                selectViatura.appendChild(opt);
+
+            });
+
+
+
+            if (valorAtual) selectViatura.value = valorAtual;
+
+        }
+
+
+
+        function calcularDistanciaMetros(lat1, lon1, lat2, lon2) {
+
+            const R = 6371000.00;
+
+            const dLat = (lat2 - lat1) * Math.PI / 180.00;
+
+            const dLon = (lon2 - lon1) * Math.PI / 180.00;
+
+            const a = Math.sin(dLat/2.00) * Math.sin(dLat/2.00) +
+
+                      Math.cos(lat1 * Math.PI / 180.00) * Math.cos(lat2 * Math.PI / 180.00) *
+
+                      Math.sin(dLon/2.00) * Math.sin(dLon/2.00);
+
+            const c = 2.00 * Math.atan2(Math.sqrt(a), Math.sqrt(1.00-a));
+
+            return R * c;
+
+        }
+
+
+
+        function classificarEstadoViatura(feature) {
+
+            const props = feature.properties;
+
+            const statusBanco = props.status || "";
+
+
+
+            if (statusBanco === "Ponto Inicial") {
+
+                return "Ponto Inicial";
+
+            }
+
+
+
+            const agora = Date.now();
+
+            const objectId = props.objectid;
+
+            const ultimaCoord = obterUltimaCoordenada(feature);
+
+            
+
+            if (ultimaCoord) {
+
+                const lonAtual = ultimaCoord.lon;
+
+                const latAtual = ultimaCoord.lat;
+
+
+
+                if (!historicoParadas[objectId]) {
+
+                    historicoParadas[objectId] = {
+
+                        lat: latAtual,
+
+                        lon: lonAtual,
+
+                        tempoEstaticoInicio: agora
+
+                    };
+
+                } else {
+
+                    const distancia = calcularDistanciaMetros(historicoParadas[objectId].lat, historicoParadas[objectId].lon, latAtual, lonAtual);
+
+                    
+
+                    if (distancia < 15.00) {
+
+                        if (agora - historicoParadas[objectId].tempoEstaticoInicio >= LIMITE_PARADO_MS) {
+
+                            return "Parada";
+
+                        }
+
+                    } else {
+
+                        historicoParadas[objectId] = {
+
+                            lat: latAtual,
+
+                            lon: lonAtual,
+
+                            tempoEstaticoInicio: agora
+
+                        };
+
+                    }
+
+                }
+
+            }
+
+
+
+            return "Em Movimento";
+
+        }
+
+
+
+        function obterCorPorViatura(nomeViatura) {
+
+            if (!nomeViatura) return "#6c757d";
+
+            let hash = 0;
+
+            for (let i = 0; i < nomeViatura.length; i++) {
+
+                hash = nomeViatura.charCodeAt(i) + ((hash << 5) - hash);
+
+            }
+
+            const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+
+            return "#" + "00000".substring(0, 6 - c.length) + c;
+
+        }
+
+
+
+        function criarIconeCarro(corHex, isSelected) {
+
+            const corBorda = isSelected ? "#00ffff" : "#ffffff";
+
+            const tamanho = isSelected ? 42.00 : 34.00;
+
+
+
+            const svgCarro = `
+
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 28" width="${tamanho}" height="${tamanho + 4}" fill="${corHex}" stroke="${corBorda}" stroke-width="1.8">
+
+                    <polygon points="12,0 6,7 10,7 10,12 14,12 14,7 18,7" fill="${corHex}" stroke="${corBorda}" stroke-width="1"/>
+
+                    <path d="M5 15l1.5-4.5h11L19 15M3 17h18v5H3v-5zm1.5 3a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm15 0a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM5 17l1-4h12l1 4"/>
+
+                </svg>
+
+            `;
+
+
+
+            return L.divIcon({
+
+                className: 'custom-div-icon',
+
+                html: `<div style="filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.6)); display: flex; align-items: center; justify-content: center;">${svgCarro}</div>`,
+
+                iconSize: [tamanho, tamanho + 4],
+
+                iconAnchor: [tamanho / 2.00, (tamanho + 4) / 2.00]
+
+            });
+
+        }
+
+
+
+        function focarNoMapa(objectId) {
+
+            idSelecionado = objectId; 
+
+            renderizarVisuais(); 
+
+            
+
+            const layer = dicionarioCamadas[objectId];
+
+            if (layer) {
+
+                if (typeof layer.getBounds === 'function') {
+
+                    map.fitBounds(layer.getBounds(), { padding: [30.00, 30.00], maxZoom: 16.00 });
+
+                } else if (typeof layer.getLatLng === 'function') {
+
+                    map.setView(layer.getLatLng(), 16.00);
+
+                }
+
+            }
+
+        }
+
+
+
+        window.desmarcarSelecao = function() {
+
+            idSelecionado = null;
+
+            renderizarVisuais();
+
+        }
+
+
+
+        map.on('click', function(e) {
+
+            if (idSelecionado !== null) {
+
+                desmarcarSelecao(); 
+
+            }
+
+        });
+
+
+
+        // FILTRO RESTRITO AO DIA DE HOJE: Remove rotas de dias anteriores
+
+        function filtrarViaturasAtivas(features) {
+
+            const agora = new Date().getTime();
+
+            const inicioDoDiaAtual = new Date();
+
+            inicioDoDiaAtual.setHours(0, 0, 0, 0);
+
+            const timestampInicioHoje = inicioDoDiaAtual.getTime();
+
+
+
+            return features.filter(feature => {
+
+                const props = feature.properties;
+
+                const status = props.status || "";
+
+                
+
+                if (status !== "Ponto Inicial" && !status.startsWith("Em movimento")) {
+
+                    return false;
+
+                }
+
+
+
+                const timestampUltimo = props.last_edited_date || props.datahora || 0;
+
+                
+
+                // Descarta tudo que não for de hoje
+
+                if (timestampUltimo < timestampInicioHoje) {
+
+                    return false;
+
+                }
+
+
+
+                return true; 
+
+            });
+
+        }
+
+
+
+        function obterFeaturesFiltradas() {
+
+            const viaturaSelecionada = document.getElementById('filtro-viatura').value;
+
+            const bairroSelecionado = document.getElementById('filtro-bairro').value;
+
+
+
+            return cacheFeatures.filter(feature => {
+
+                const props = feature.properties;
+
+                const nomeViatura = props.nome || "";
+
+
+
+                if (viaturaSelecionada !== "TODAS" && nomeViatura !== viaturaSelecionada) {
+
+                    return false;
+
+                }
+
+
+
+                if (bairroSelecionado !== "TODOS") {
+
+                    const bairroViatura = identificarBairroDaFeature(feature);
+
+                    if (bairroViatura !== bairroSelecionado) {
+
+                        return false;
+
+                    }
+
+                }
+
+
+
+                return true;
+
+            });
+
+        }
+
+
+
+        window.aplicarFiltrosManuais = function() {
+
+            renderizarVisuais();
+
+        }
+
+
+
+        function renderizarVisuais() {
+
+            const areaBtn = document.getElementById('area-desselecionar');
+
+            if (idSelecionado !== null) {
+
+                areaBtn.style.display = "block";
+
+            } else {
+
+                areaBtn.style.display = "none";
+
+            }
+
+
+
+            const featuresFiltradas = obterFeaturesFiltradas();
+
+
+
+            const dadosFiltrados = {
+
+                type: "FeatureCollection",
+
+                features: featuresFiltradas 
+
+            };
+
+
+
+            if (camadaRastreamento) {
+
+                map.removeLayer(camadaRastreamento);
+
+            }
+
+            camadaLabels.clearLayers();
+
+            camadaDecoradores.clearLayers();
+
+            dicionarioCamadas = {};
+
+
+
+            camadaRastreamento = L.geoJSON(dadosFiltrados, {
+
+                style: function (feature) {
+
+                    const objectId = feature.properties.objectid;
+
+                    const isSelected = (objectId === idSelecionado);
+
+                    const nomeViatura = feature.properties.nome || "";
+
+                    
+
+                    const corLinha = isSelected ? "#00ffff" : obterCorPorViatura(nomeViatura);
+
+                    const pesoLinha = isSelected ? 8.00 : 5.00;
+
+                    
+
+                    return { color: corLinha, weight: pesoLinha, opacity: 0.85 }; 
+
+                },
+
+                onEachFeature: function (feature, layer) {
+
+                    const objectId = feature.properties.objectid;
+
+                    const isSelected = (objectId === idSelecionado);
+
+                    const nomeViatura = feature.properties.nome || "";
+
+                    const corViatura = obterCorPorViatura(nomeViatura);
+
+                    
+
+                    if (objectId) {
+
+                        dicionarioCamadas[objectId] = layer;
+
+                    }
+
+
+
+                    layer.on('click', function(e) {
+
+                        L.DomEvent.stopPropagation(e);
+
+                        focarNoMapa(objectId);
+
+                    });
+
+
+
+                    if (isSelected && typeof layer.bringToFront === 'function') {
+
+                        setTimeout(() => layer.bringToFront(), 10.00);
+
+                    }
+
+
+
+                    let latlngs;
+
+                    if (typeof layer.getLatLngs === 'function') {
+
+                        latlngs = layer.getLatLngs();
+
+                    } else if (typeof layer.getLatLng === 'function') {
+
+                        latlngs = [layer.getLatLng()]; 
+
+                    }
+
+
+
+                    if (latlngs) {
+
+                        if (Array.isArray(latlngs) && latlngs.length > 1.00) {
+
+                            try {
+
+                                L.polylineDecorator(layer, {
+
+                                    patterns: [
+
+                                        {
+
+                                            offset: '25px',
+
+                                            repeat: '60px',
+
+                                            symbol: L.Symbol.arrowHead({
+
+                                                pixelSize: 8.00,
+
+                                                polygon: false,
+
+                                                pathOptions: { stroke: true, color: isSelected ? '#00ffff' : '#ffffff', weight: 2.00 }
+
+                                            })
+
+                                        }
+
+                                    ]
+
+                                }).addTo(camadaDecoradores);
+
+                            } catch (e) {}
+
+                        }
+
+
+
+                        // PLOTAGEM EXCLUSIVA NA ÚLTIMA POSIÇÃO (GPS Atual)
+
+                        const ultimaCoord = obterUltimaCoordenada(feature);
+
+                        if (ultimaCoord) {
+
+                            const lastLatLng = L.latLng(ultimaCoord.lat, ultimaCoord.lon);
+
+
+
+                            const nomePreenchido = feature.properties.nome && feature.properties.nome.trim() !== "";
+
+                            const nomeDisplay = nomePreenchido ? feature.properties.nome : "⚠️ SEM ID";
+
+                            const classeLabelExtra = !nomePreenchido ? "label-alerta" : "";
+
+
+
+                            const labelIcon = L.divIcon({
+
+                                className: 'custom-div-icon',
+
+                                html: `<div class="label-viatura ${classeLabelExtra}">${nomeDisplay}</div>`,
+
+                                iconSize: [null, null],
+
+                                iconAnchor: [-16.00, 16.00] 
+
+                            });
+
+                            
+
+                            L.marker(lastLatLng, { icon: labelIcon, interactive: false }).addTo(camadaLabels);
+
+
+
+                            const iconeCarro = criarIconeCarro(corViatura, isSelected);
+
+                            L.marker(lastLatLng, { icon: iconeCarro }).addTo(camadaLabels).on('click', function(e) {
+
+                                L.DomEvent.stopPropagation(e);
+
+                                focarNoMapa(objectId);
+
+                            });
+
+                        }
+
+                    }
+
+                }
+
+            }).addTo(map);
+
+
+
+            processarSidebar(featuresFiltradas);
+
+        }
+
+
+
+        function processarSidebar(featuresAtivas) {
+
+            const grupos = {
+
+                "Ponto Inicial": [],
+
+                "Em Movimento": [],
+
+                "Parada": []
+
+            };
+
+
+
+            const agora = Date.now();
+
+
+
+            featuresAtivas.forEach(viatura => {
+
+                const props = viatura.properties;
+
+                const objectId = props.objectid;
+
+
+
+                if (!temposInicio[objectId]) {
+
+                    temposInicio[objectId] = props.created_date || props.datahora || agora;
+
+                }
+
+
+
+                const estado = classificarEstadoViatura(viatura);
+
+                if (grupos[estado]) {
+
+                    grupos[estado].push({ viatura, estado });
+
+                } else {
+
+                    grupos["Em Movimento"].push({ viatura, estado });
+
+                }
+
+            });
+
+
+
+            let htmlSidebar = `
+
+                <div class="resumo-painel">
+
+                    <div class="resumo-total">
+
+                        <span>Exibindo em Campo</span>
+
+                        <span>${featuresAtivas.length.toFixed(2)}</span>
+
+                    </div>
+
+                    <div class="resumo-linha">
+
+                        <div class="resumo-box resumo-inicial">
+
+                            🟡 Inicial: ${grupos["Ponto Inicial"].length.toFixed(2)}
+
+                        </div>
+
+                        <div class="resumo-box resumo-movimento">
+
+                            🟢 Mov: ${grupos["Em Movimento"].length.toFixed(2)}
+
+                        </div>
+
+                        <div class="resumo-box resumo-parado">
+
+                            🔵 Parada: ${grupos["Parada"].length.toFixed(2)}
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            `;
+
+
+
+            const ordemDesejada = ["Ponto Inicial", "Em Movimento", "Parada"];
+
+
+
+            ordemDesejada.forEach(nomeGrupo => {
+
+                const itens = grupos[nomeGrupo];
+
+                if (itens.length === 0.00) return;
+
+
+
+                const corGrupo = "#4a5568";
+
+                
+
+                htmlSidebar += `<div class="status-group">`;
+
+                htmlSidebar += `<div class="status-title" style="background-color: ${corGrupo};">${nomeGrupo}</div>`;
+
+                htmlSidebar += `<div class="grid-viaturas">`; 
+
+                
+
+                itens.forEach(item => {
+
+                    const props = item.viatura.properties;
+
+                    const objectId = props.objectid;
+
+                    const nomePreenchido = props.nome && props.nome.trim() !== "";
+
+                    const nome = nomePreenchido ? props.nome : "⚠️ ALERTA: SEM ID";
+
+                    const classeAlerta = !nomePreenchido ? "alerta-sem-id" : "";
+
+
+
+                    const corViatura = obterCorPorViatura(props.nome);
+
+
+
+                    const dataInicio = new Date(temposInicio[objectId]);
+
+                    const inicioTxt = dataInicio.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+                    
+
+                    let infoTempoTxt = `<strong>Início:</strong> ${inicioTxt}<br><strong>Fim:</strong> Em andamento`;
+
+                    if (nomeGrupo === "Ponto Inicial") {
+
+                        infoTempoTxt = `<strong>Início:</strong> ${inicioTxt}<br><strong style="color:#856404;">Aguardando Deslocamento</strong>`;
+
+                    } else if (nomeGrupo === "Parada") {
+
+                        infoTempoTxt = `<strong>Início:</strong> ${inicioTxt}<br><strong style="color:#007bff;">Estacionada / Ocorrência</strong>`;
+
+                    }
+
+
+
+                    let corBorda = corViatura;
+
+                    if (!nomePreenchido) corBorda = "#dc2626";
+
+                    if (idSelecionado === objectId) corBorda = "#00ffff";
+
+
+
+                    htmlSidebar += `
+
+                        <div class="viatura-card ${classeAlerta}" onclick="focarNoMapa(${objectId})" style="border-left-color: ${corBorda};">
+
+                            <div class="viatura-nome">${nome}</div>
+
+                            <div class="viatura-info">
+
+                                ${infoTempoTxt}
+
+                            </div>
+
+                        </div>
+
+                    `;
+
+                });
+
+
+
+                htmlSidebar += `</div></div>`;
+
+            });
+
+
+
+            const listaDiv = document.getElementById('lista-viaturas');
+
+            if (featuresAtivas.length === 0.00) {
+
+                listaDiv.innerHTML = "<p>Nenhuma equipe encontrada com os filtros selecionados.</p>";
+
+            } else {
+
+                listaDiv.innerHTML = htmlSidebar;
+
+            }
+
+        }
+
+
+
+        async function atualizarMapa() {
+
+            try {
+
+                const urlSemCache = URL_RASTREAMENTO + "&_t=" + new Date().getTime();
+
+                const resposta = await fetch(urlSemCache);
+
+                
+
+                if (!resposta.ok) throw new Error("Falha na resposta do servidor.");
+
+                
+
+                const dadosGeoJSON = await resposta.json();
+
+                
+
+                cacheFeatures = filtrarViaturasAtivas(dadosGeoJSON.features);
+
+
+
+                popularSelectViatras(cacheFeatures);
+
+                atualizarSelectBairrosComAtivos(cacheFeatures);
+
+                atualizarGrafico(cacheFeatures);
+
+
+
+                const painelConexao = document.getElementById('indicador-conexao');
+
+                painelConexao.className = "status-conexao conexao-online";
+
+                painelConexao.innerHTML = `🟢 Ao vivo (Atualizado às ${new Date().toLocaleTimeString('pt-BR')})`;
+
+
+
+                renderizarVisuais();
+
+
+
+                if (primeiraCarga && cacheFeatures.length > 0.00) {
+
+                    const activeLayers = camadaRastreamento.getLayers();
+
+                    if(activeLayers.length > 0.00) {
+
+                        map.fitBounds(camadaRastreamento.getBounds(), { padding: [30.00, 30.00], maxZoom: 16.00 });
+
+                    }
+
+                    primeiraCarga = false;
+
+                }
+
+
+
+            } catch (erro) {
+
+                console.error("Erro ao atualizar o rastreamento:", erro);
+
+                
+
+                const painelConexao = document.getElementById('indicador-conexao');
+
+                painelConexao.className = "status-conexao conexao-offline";
+
+                painelConexao.innerHTML = `🔴 Desconectado. Tentando reconectar...`;
+
+            }
+
+        }
+
+
+
+        carregarBairros().then(() => {
+
+            atualizarMapa();
+
+            setInterval(atualizarMapa, 5000.00);
+
+        });
+
+
+
+    </script>
+
+</body>
+
+</html> 
+
