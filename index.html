@@ -258,7 +258,7 @@ body:not(.auth-locked) #auth-gate { display: none; }
 <div id="auth-gate" aria-live="polite">
     <div class="auth-card">
         <div class="auth-brand">
-            <img src="atlas%20logo.png" alt="Atlas Eleitoral">
+            <img src="atlas_logo_.png" alt="Atlas Eleitoral">
             <div>
                 <h1>Atlas Eleitoral de Itajaí</h1>
                 <p>Inteligência Geográfica</p>
@@ -293,7 +293,7 @@ body:not(.auth-locked) #auth-gate { display: none; }
 <!-- HEADER -->
 <header>
     <div class="brand" role="button" tabindex="0" title="Voltar à página inicial" onclick="mudarAba('inicio', null)">
-        <img id="atlasLogo" class="brand-logo" src="atlas%20logo.png" alt="Atlas" onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='flex';">
+        <img id="atlasLogo" class="brand-logo" src="atlas_logo_.png" alt="Atlas" onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='flex';">
         <div id="logoFallback" class="brand-logo-fallback" style="display:none;">AT</div>
         <div class="brand-text">
             <h1>Atlas Eleitoral de Itajaí</h1>
@@ -301,8 +301,10 @@ body:not(.auth-locked) #auth-gate { display: none; }
         </div>
     </div>
     <nav>
-        <button class="nav-btn" onclick="mudarAba('mapas-tre', this)">Mapa locais de votação</button>
-        <button class="nav-btn" onclick="mudarAba('mapas-ibge', this)">Mapa aptos a votar</button>
+        <button class="nav-btn" onclick="mudarAba('mapas-tre', this)">Locais de Votação</button>
+        <button class="nav-btn" onclick="mudarAba('mapas-ibge', this)">População Eleitoral</button>
+        <button class="nav-btn" onclick="atlasAnalyticsTab('tab-eleitorado', this)">Perfil do Eleitorado</button>
+        <button class="nav-btn" onclick="atlasAnalyticsTab('tab-filiacoes', this)">Filiação Partidária</button>
     </nav>
 
     <div class="auth-user-area">
@@ -317,7 +319,7 @@ body:not(.auth-locked) #auth-gate { display: none; }
         <div class="hero">
             <div class="hero-eyebrow">ATLAS ELEITORAL • ITAJAÍ</div>
             <h2>Bem-vindo ao Atlas Eleitoral</h2>
-            <p>Plataforma de inteligência geográfica para análise territorial do eleitorado de Itajaí. Integra dados do TRE-SC e do Censo Demográfico 2022 do IBGE, permitindo visualizar a distribuição dos eleitores, os locais de votação e a população em idade eleitoral no município.</p>
+            <p>Plataforma de inteligência geográfica para leitura integrada do território eleitoral de Itajaí, reunindo informações oficiais e análises espaciais para compreender a distribuição do eleitorado, dos locais de votação e da população em idade eleitoral no município.</p>
             <div class="hero-actions">
                 <button type="button" onclick="mudarAba('mapas-tre', document.querySelectorAll('.nav-btn')[0])">Explorar locais de votação</button>
                 <button type="button" class="secondary" onclick="mudarAba('mapas-ibge', document.querySelectorAll('.nav-btn')[1])">Analisar população apta a votar</button>
@@ -1075,12 +1077,26 @@ body:not(.auth-locked) #auth-gate { display: none; }
 
         // Gatilho fundamental para corrigir problemas visuais em mapas e gráficos em abas ocultas
         setTimeout(() => {
-            mapTRE.invalidateSize();
-            mapIBGE.invalidateSize();
+            try { mapTRE.invalidateSize(true); } catch(e) {}
+            try { mapIBGE.invalidateSize(true); } catch(e) {}
+
+            if(idAba === 'mapas-tre') {
+                try {
+                    if (camadaBairrosTRE && !mapTRE.hasLayer(camadaBairrosTRE)) camadaBairrosTRE.addTo(mapTRE);
+                    if (camadaLocaisTRE && !mapTRE.hasLayer(camadaLocaisTRE)) camadaLocaisTRE.addTo(mapTRE);
+                    filtrarTRE();
+                    mapTRE.invalidateSize(true);
+                } catch(e) { console.error('Erro ao restaurar mapa TRE:', e); }
+            }
+
+            if(idAba === 'mapas-ibge') {
+                try { mapIBGE.invalidateSize(true); } catch(e) {}
+            }
+
             if(idAba === 'estatisticas') {
                 Object.values(Chart.instances).forEach(chart => chart.resize());
             }
-        }, 150);
+        }, 180);
     }
 
     // ATLAS_PRIVATE_DATA_V1
