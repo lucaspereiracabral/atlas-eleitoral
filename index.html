@@ -152,7 +152,7 @@
         /* Estilo da Página de Gráficos */
         .charts-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
             gap: 20px;
             flex: 1;
         }
@@ -177,11 +177,11 @@
         .chart-container {
             position: relative;
             flex: 1;
-            min-height: 300px;
+            min-height: 450px; /* Aumentado para caber os locais de votação */
         }
 
         @media (max-width: 768.00px) {
-            .home-grid, .charts-grid {
+            .home-grid {
                 grid-template-columns: 1fr;
             }
             header {
@@ -202,7 +202,7 @@
         <nav>
             <button class="nav-btn active" onclick="mudarAba('inicio', event)">Início</button>
             <button class="nav-btn" onclick="mudarAba('mapas', event)">Locais de Votação</button>
-            <button class="nav-btn" onclick="mudarAba('graficos', event)">Gráficos</button>
+            <button class="nav-btn" onclick="mudarAba('graficos', event)">Gráficos e Estatísticas</button>
         </nav>
     </header>
 
@@ -219,7 +219,7 @@
                 </div>
                 <div class="home-card">
                     <h3>📊 Estatísticas Municipais</h3>
-                    <p>Consulte gráficos dinâmicos com cruzamento de variáveis demográficas e indicadores públicos da região.</p>
+                    <p>Consulte gráficos dinâmicos com o quantitativo de eleitores extraídos diretamente das bases oficiais do TRE.</p>
                 </div>
             </div>
         </div>
@@ -235,15 +235,9 @@
     <div id="graficos" class="tab-content">
         <div class="charts-grid">
             <div class="chart-box">
-                <div class="chart-title">Eleitores por Local de Votação</div>
+                <div class="chart-title">Eleitores por Local de Votação (Maiores Eleitorados)</div>
                 <div class="chart-container">
-                    <canvas id="graficoBarras"></canvas>
-                </div>
-            </div>
-            <div class="chart-box">
-                <div class="chart-title">Evolução Histórica Comparativa</div>
-                <div class="chart-container">
-                    <canvas id="graficoLinha"></canvas>
+                    <canvas id="graficoLocaisVotacao"></canvas>
                 </div>
             </div>
         </div>
@@ -278,7 +272,7 @@
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
-        // Função robusta para buscar propriedades ignorando maiúsculas/minúsculas
+        // Função auxiliar para buscar propriedades ignorando maiúsculas/minúsculas
         function obterValor(props, chaves) {
             for (let chave of chaves) {
                 for (let p in props) {
@@ -290,7 +284,9 @@
             return null;
         }
 
-        // Carregamento do arquivo GeoJSON de Locais de Votação
+        let graficoInstancia = null;
+
+        // Carregamento do arquivo GeoJSON de Locais de Votação (Mapa e Gráfico)
         fetch('locais_de_votacao_e_secoes.geojson')
             .then(resposta => {
                 if (!resposta.ok) throw new Error("Erro HTTP: " + resposta.status);
@@ -299,12 +295,11 @@
             .then(dadosGeoJSON => {
                 console.log("GeoJSON carregado com sucesso!", dadosGeoJSON);
 
+                // 1. CARREGAMENTO DOS PONTOS NO MAPA
                 L.geoJSON(dadosGeoJSON, {
                     pointToLayer: function (feature, latlng) {
                         const props = feature.properties || {};
-                        
-                        // Busca o total de eleitores de forma flexível (TOTAL_EL_1 ou total_el_1)
-                        const eleitoresVal = obterValor(props, ['TOTAL_EL_1', 'total_el_1', 'eleitores', 'num_eleitores']) || 150;
+                        const eleitoresVal = obterValor(props, ['TOTAL_EL_1', 'total_el_1']) || 150;
                         const raio = Math.max(6, Math.min(24, Number(eleitoresVal) / 250));
 
                         return L.circleMarker(latlng, {
@@ -318,14 +313,12 @@
                     },
                     onEachFeature: function (feature, layer) {
                         const props = feature.properties || {};
-                        
-                        // Busca exata baseada na imagem da tabela (LOCAL_DE_1, ENDERECO_1, etc.)
-                        const nomeLocal = obterValor(props, ['LOCAL_DE_1', 'local_de_1', 'nome', 'local']) || "Local de Votação";
-                        const endereco = obterValor(props, ['ENDERECO_1', 'endereco_1', 'endereco']) || "Endereço não informado";
-                        const bairro = obterValor(props, ['BAIRRO_1', 'bairro_1', 'bairro']) || "Bairro não informado";
-                        const zona = obterValor(props, ['ZONA_ELE_1', 'zona_ele_1', 'zona']) || "N/A";
-                        const secoes = obterValor(props, ['SEÇÕES', 'seções', 'seções_1', 'seções']) || "Não informadas";
-                        const totalEleitores = obterValor(props, ['TOTAL_EL_1', 'total_el_1', 'eleitores']) || "Não informado";
+                        const nomeLocal = obterValor(props, ['LOCAL_DE_1', 'local_de_1']) || "Local de Votação";
+                        const endereco = obterValor(props, ['ENDERECO_1', 'endereco_1']) || "Endereço não informado";
+                        const bairro = obterValor(props, ['BAIRRO_1', 'bairro_1']) || "Bairro não informado";
+                        const zona = obterValor(props, ['ZONA_ELE_1', 'zona_ele_1']) || "N/A";
+                        const secoes = obterValor(props, ['SEÇÕES', 'seções', 'seções_1']) || "Não informadas";
+                        const totalEleitores = obterValor(props, ['TOTAL_EL_1', 'total_el_1']) || "Não informado";
 
                         layer.bindPopup(`
                             <div style="font-family: sans-serif; font-size: 0.9rem; line-height: 1.4; max-width: 260px;">
@@ -337,53 +330,59 @@
                         `);
                     }
                 }).addTo(map);
+
+                // 2. PROCESSAMENTO DOS DADOS PARA O GRÁFICO
+                const listaLocais = dadosGeoJSON.features.map(f => {
+                    const p = f.properties || {};
+                    return {
+                        nome: obterValor(p, ['LOCAL_DE_1', 'local_de_1']) || 'Desconhecido',
+                        eleitores: Number(obterValor(p, ['TOTAL_EL_1', 'total_el_1'])) || 0
+                    };
+                });
+
+                // Ordena do maior para o menor número de eleitores e pega os top 10 para o gráfico não ficar poluído
+                listaLocais.sort((a, b) => b.eleitores - a.eleitores);
+                const topLocais = listaLocais.slice(0, 10);
+
+                const nomes = topLocais.map(l => l.nome);
+                const valores = topLocais.map(l => l.eleitores);
+
+                // 3. RENDERIZAÇÃO DO GRÁFICO COM CHART.JS
+                const ctx = document.getElementById('graficoLocaisVotacao').getContext('2d');
+                graficoInstancia = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: nomes,
+                        datasets: [{
+                            label: 'Total de Eleitores',
+                            data: valores,
+                            backgroundColor: '#0284c7',
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y', // Gráfico de barras horizontais para facilitar a leitura dos nomes das escolas
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                ticks: { font: { size: 11 } }
+                            },
+                            y: {
+                                ticks: { font: { size: 10 } }
+                            }
+                        }
+                    }
+                });
+
             })
             .catch(erro => {
-                console.error("Erro ao carregar o GeoJSON:", erro);
+                console.error("Erro ao carregar o GeoJSON para os gráficos:", erro);
             });
-
-        // Inicialização dos Gráficos (Chart.js)
-        const ctxBar = document.getElementById('graficoBarras').getContext('2d');
-        new Chart(ctxBar, {
-            type: 'bar',
-            data: {
-                labels: ['Zona 01', 'Zona 02', 'Zona 03', 'Zona 04', 'Zona 05'],
-                datasets: [{
-                    label: 'Eleitores',
-                    data: [1200, 1900, 1500, 2200, 1800],
-                    backgroundColor: '#0284c7',
-                    borderRadius: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true } }
-            }
-        });
-
-        const ctxLine = document.getElementById('graficoLinha').getContext('2d');
-        new Chart(ctxLine, {
-            type: 'line',
-            data: {
-                labels: ['2012', '2016', '2020', '2024'],
-                datasets: [{
-                    label: 'Série Histórica',
-                    data: [4200, 4800, 5300, 6100],
-                    borderColor: '#1e3a8a',
-                    backgroundColor: 'rgba(30, 58, 138, 0.1)',
-                    fill: true,
-                    tension: 0.3
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: false } }
-            }
-        });
     </script>
 </body>
 </html>
