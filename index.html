@@ -281,7 +281,7 @@
         <div class="sidebar">
             <div class="sidebar-header">
                 <h3>População em Idade Eleitoral (IBGE)</h3>
-                <p>Clique nos <b>pontos laranjas</b> (Locais de Votação) no mapa para ativar a ferramenta de Raio e descobrir quantos moradores vivem no entorno.</p>
+                <p>Clique nos <b>pontos laranjas</b> (Locais de Votação) para estimar a população com 16 anos ou mais no raio selecionado.</p>
             </div>
             
             <!-- FERRAMENTA DE BUFFER -->
@@ -323,7 +323,7 @@
         </div>
         <div class="charts-grid">
             <div class="chart-card full">
-                <div class="chart-title">Comparativo: População estimada 16+ (IBGE, distribuição proporcional por área) vs Eleitorado (TRE) por Bairro</div>
+                <div class="chart-title">Comparativo: População estimada 16+ (IBGE) vs Eleitorado (TRE) por Bairro</div>
                 <div id="bairroChartContainer" class="canvas-wrapper large"><canvas id="chartBairros"></canvas></div>
             </div>
             <div class="chart-card">
@@ -451,134 +451,283 @@
         });
     }
 
-    function bboxSobrepoe(a, b) {
-        return !(
-            a[2] < b[0] ||
-            a[0] > b[2] ||
-            a[3] < b[1] ||
-            a[1] > b[3]
+    /*
+     * =========================================================
+     * AMOSTRAGEM ESPACIAL ROBUSTA
+     * =========================================================
+     *
+     * Evita turf.intersect(), que pode falhar com determinadas
+     * geometrias Polygon/MultiPolygon e fazer a população zerar.
+     *
+     * Cada setor recebe uma grade regular de pontos internos.
+     * A proporção desses pontos em cada bairro aproxima a proporção
+     * da área do setor em cada bairro.
+     */
+
+    const AMOSTRAS_POR_EIXO = 12;
+
+    function bboxContemPonto(bbox, lng, lat) {
+        return (
+            lng >= bbox[0] &&
+            lng <= bbox[2] &&
+            lat >= bbox[1] &&
+            lat <= bbox[3]
         );
     }
 
-    /*
-     * Distribui a população de um setor entre os bairros conforme
-     * a proporção da área de interseção setor x bairro.
-     *
-     * Exemplo:
-     * - 70% da área do setor em Cordeiros
-     * - 30% da área do setor em São Vicente
-     * => 70% da população 16+ vai para Cordeiros
-     * => 30% da população 16+ vai para São Vicente
-     *
-     * As proporções são normalizadas pela soma das áreas efetivamente
-     * intersectadas, preservando a população total do setor.
-     */
-    function distribuirSetorEntreBairros(setor, populacao) {
-        if(!setor || !setor.geometry || !geoBairros || populacao <= 0) {
-            return [];
-        }
+    function prepararBairrosEspaciais() {
+        if(!geoBairros || !Array.isArray(geoBairros.features)) return;
 
-        const resultados = [];
-
-        let bboxSetor;
-        try {
-            bboxSetor = turf.bbox(setor);
-        } catch(e) {
-            return [];
-        }
-
-        for(const bairro of geoBairros.features) {
-            if(!bairro || !bairro.geometry) continue;
-
+        geoBairros.features.forEach(b => {
             try {
-                const bboxBairro = bairro.__bboxCache || turf.bbox(bairro);
-                bairro.__bboxCache = bboxBairro;
-
-                if(!bboxSobrepoe(bboxSetor, bboxBairro)) continue;
-
-                if(!turf.booleanIntersects(setor, bairro)) continue;
-
-                const inter = turf.intersect(setor, bairro);
-                if(!inter) continue;
-
-                const areaInter = turf.area(inter);
-                if(!(areaInter > 0)) continue;
-
-                const nome = getProp(
-                    bairro.properties || {},
-                    ["nome", "bairro", "NOME", "BAIRRO", "nome_bairro"]
-                );
-
-                if(!nome) continue;
-
-                resultados.push({
-                    bairro: nome,
-                    area: areaInter
-                });
-
+                b.__bboxCache = turf.bbox(b);
             } catch(e) {
-                // Uma geometria inválida não deve interromper o carregamento.
+                b.__bboxCache = null;
             }
-        }
 
-        if(resultados.length) {
-            const areaSomada = resultados.reduce((s, r) => s + r.area, 0);
+            b.__nomeCache = getProp(
+                b.properties || {},
+                ["nome", "bairro", "NOME", "BAIRRO", "nome_bairro"]
+            ) || "Outros";
+        });
+    }
 
-            if(areaSomada > 0) {
-                return resultados.map(r => ({
-                    bairro: r.bairro,
-                    populacao: populacao * (r.area / areaSomada)
-                }));
-            }
-        }
+    /*
+     * Gera pontos de amostragem dentro do setor.
+     * O resultado é armazenado em cache, pois será reutilizado
+     * tanto no cálculo por bairro quanto no buffer.
+     */
+    function obterAmostrasSetor(setor) {
+        if(setor.__amostrasPop) return setor.__amostrasPop;
 
-        /*
-         * Fallback para geometrias que falhem na interseção:
-         * atribui todo o setor ao bairro que contém o centroide.
-         */
+        const pontos = [];
+
         try {
-            const centroide = turf.centroid(setor);
+            const bbox = turf.bbox(setor);
 
-            for(const bairro of geoBairros.features) {
-                if(turf.booleanPointInPolygon(centroide, bairro)) {
-                    const nome = getProp(
-                        bairro.properties || {},
-                        ["nome", "bairro", "NOME", "BAIRRO", "nome_bairro"]
-                    );
+            const minLng = bbox[0];
+            const minLat = bbox[1];
+            const maxLng = bbox[2];
+            const maxLat = bbox[3];
 
-                    if(nome) {
-                        return [{
-                            bairro: nome,
-                            populacao: populacao
-                        }];
-                    }
+            const largura = maxLng - minLng;
+            const altura = maxLat - minLat;
+
+            for(let x = 0; x < AMOSTRAS_POR_EIXO; x++) {
+                for(let y = 0; y < AMOSTRAS_POR_EIXO; y++) {
+
+                    // Ponto no centro de cada célula da grade
+                    const lng =
+                        minLng +
+                        ((x + 0.5) / AMOSTRAS_POR_EIXO) *
+                        largura;
+
+                    const lat =
+                        minLat +
+                        ((y + 0.5) / AMOSTRAS_POR_EIXO) *
+                        altura;
+
+                    const pt = turf.point([lng, lat]);
+
+                    try {
+                        if(turf.booleanPointInPolygon(pt, setor)) {
+                            pontos.push({
+                                lat: lat,
+                                lng: lng
+                            });
+                        }
+                    } catch(e) {}
                 }
             }
+
         } catch(e) {}
 
         /*
-         * Último fallback: usa NM_BAIRRO do IBGE somente quando o nome
-         * casar com a camada municipal.
+         * Setores muito pequenos/estreitos podem não receber
+         * nenhum ponto da grade. Nesse caso usamos o centroide.
          */
-        const nomeIBGE = getProp(
-            setor.properties || {},
-            ["nm_bairro", "NM_BAIRRO"]
-        );
+        if(!pontos.length) {
+            try {
+                const c = turf.centroid(setor);
+                const coord = c.geometry.coordinates;
+
+                pontos.push({
+                    lng: coord[0],
+                    lat: coord[1]
+                });
+            } catch(e) {}
+        }
+
+        setor.__amostrasPop = pontos;
+
+        return pontos;
+    }
+
+    /*
+     * Retorna o bairro municipal onde um ponto está localizado.
+     */
+    function localizarBairroDoPonto(lat, lng) {
+        if(!geoBairros) return null;
+
+        const pt = turf.point([lng, lat]);
+
+        for(const bairro of geoBairros.features) {
+
+            if(
+                bairro.__bboxCache &&
+                !bboxContemPonto(
+                    bairro.__bboxCache,
+                    lng,
+                    lat
+                )
+            ) {
+                continue;
+            }
+
+            try {
+                if(turf.booleanPointInPolygon(pt, bairro)) {
+                    return bairro.__nomeCache || "Outros";
+                }
+            } catch(e) {}
+        }
+
+        return null;
+    }
+
+    /*
+     * Distribui a população do setor entre os bairros.
+     *
+     * Exemplo:
+     * 70% das amostras em Cordeiros
+     * 30% das amostras em São Vicente
+     *
+     * => 70% da população vai para Cordeiros
+     * => 30% vai para São Vicente
+     *
+     * A soma sempre preserva a população total do setor.
+     */
+    function distribuirSetorEntreBairros(setor, populacao) {
+
+        if(
+            !setor ||
+            !setor.geometry ||
+            populacao <= 0
+        ) {
+            return [];
+        }
+
+        const amostras =
+            obterAmostrasSetor(setor);
+
+        const contagem = {};
+
+        let pontosAtribuidos = 0;
+
+        amostras.forEach(p => {
+
+            const bairro =
+                localizarBairroDoPonto(
+                    p.lat,
+                    p.lng
+                );
+
+            if(bairro) {
+                contagem[bairro] =
+                    (contagem[bairro] || 0) + 1;
+
+                pontosAtribuidos++;
+            }
+        });
+
+        /*
+         * Se houve pontos localizados em bairros,
+         * usamos apenas os pontos atribuídos como denominador.
+         * Isso evita perder população nas bordas externas.
+         */
+        if(pontosAtribuidos > 0) {
+
+            return Object
+                .entries(contagem)
+                .map(([bairro, quantidade]) => ({
+                    bairro:
+                        bairro,
+
+                    populacao:
+                        populacao *
+                        (
+                            quantidade /
+                            pontosAtribuidos
+                        )
+                }));
+        }
+
+        /*
+         * FALLBACK 1:
+         * Centroide do setor.
+         */
+        try {
+
+            const c =
+                turf.centroid(setor);
+
+            const coord =
+                c.geometry.coordinates;
+
+            const bairro =
+                localizarBairroDoPonto(
+                    coord[1],
+                    coord[0]
+                );
+
+            if(bairro) {
+                return [{
+                    bairro:
+                        bairro,
+
+                    populacao:
+                        populacao
+                }];
+            }
+
+        } catch(e) {}
+
+        /*
+         * FALLBACK 2:
+         * NM_BAIRRO existente no arquivo do IBGE.
+         */
+        const nomeIBGE =
+            getProp(
+                setor.properties || {},
+                [
+                    "nm_bairro",
+                    "NM_BAIRRO"
+                ]
+            );
 
         if(nomeIBGE) {
-            const canonico = bairroCanonicoPorNome[normalizarNome(nomeIBGE)];
+
+            const canonico =
+                bairroCanonicoPorNome[
+                    normalizarNome(nomeIBGE)
+                ];
 
             if(canonico) {
                 return [{
-                    bairro: canonico,
-                    populacao: populacao
+                    bairro:
+                        canonico,
+
+                    populacao:
+                        populacao
                 }];
             }
         }
 
         return [{
-            bairro: "Outros",
-            populacao: populacao
+            bairro:
+                "Outros",
+
+            populacao:
+                populacao
         }];
     }
 
@@ -624,6 +773,7 @@
         geoSetores = setores;
 
         prepararIndiceBairros();
+        prepararBairrosEspaciais();
 
         let zonasSet = new Set();
 
@@ -686,6 +836,39 @@
                 "População sem bairro (Outros):",
                 Math.round(popPorBairro["Outros"] || 0)
             );
+
+            const somaPopBairros =
+                Object
+                    .values(popPorBairro)
+                    .reduce(
+                        (soma, valor) =>
+                            soma + Number(valor || 0),
+                        0
+                    );
+
+            console.info(
+                "CHECAGEM - total 16+ dos setores:",
+                totalMoradoresIBGE
+            );
+
+            console.info(
+                "CHECAGEM - total 16+ distribuído nos bairros:",
+                Math.round(somaPopBairros)
+            );
+
+            if(totalMoradoresIBGE > 0) {
+
+                const diferenca =
+                    Math.abs(
+                        somaPopBairros -
+                        totalMoradoresIBGE
+                    );
+
+                console.info(
+                    "CHECAGEM - diferença:",
+                    Math.round(diferenca)
+                );
+            }
             if((popPorBairro["Outros"] || 0) > totalMoradoresIBGE * 0.8) {
                 console.warn(
                     "A maior parte da população foi atribuída a 'Outros'. " +
@@ -896,14 +1079,44 @@
        LÓGICA DE RAIO / BUFFER IBGE (Turf Seguro)
     ========================================================== */
     function abrirBuffer(latlng, nome) {
-        // Aceita tanto [lat, lng] quanto L.LatLng.
-        bufferLatLng = Array.isArray(latlng)
-            ? L.latLng(latlng[0], latlng[1])
-            : L.latLng(latlng);
 
-        document.getElementById("buffer-tool").style.display = "block";
-        document.getElementById("buffer-escola").innerText = nome;
-        mapIBGE.setView(bufferLatLng, 15);
+        /*
+         * Os locais TRE são armazenados como [lat, lng].
+         * Convertemos explicitamente para L.LatLng.
+         */
+        if(Array.isArray(latlng)) {
+
+            bufferLatLng =
+                L.latLng(
+                    Number(latlng[0]),
+                    Number(latlng[1])
+                );
+
+        } else {
+
+            bufferLatLng =
+                L.latLng(latlng);
+        }
+
+        document
+            .getElementById(
+                "buffer-tool"
+            )
+            .style.display =
+            "block";
+
+        document
+            .getElementById(
+                "buffer-escola"
+            )
+            .innerText =
+            nome;
+
+        mapIBGE.setView(
+            bufferLatLng,
+            15
+        );
+
         atualizarBuffer();
     }
 
@@ -914,104 +1127,207 @@
     }
 
     function atualizarBuffer() {
-        if(!geoSetores || !bufferLatLng) return;
 
-        const raioM = parseInt(document.getElementById("buffer-slider").value);
-        document.getElementById("buffer-raio").innerText = raioM + "m";
+        if(
+            !geoSetores ||
+            !bufferLatLng
+        ) {
+            return;
+        }
 
-        if(bufferCircle) mapIBGE.removeLayer(bufferCircle);
+        const raioM =
+            Number(
+                document
+                    .getElementById(
+                        "buffer-slider"
+                    )
+                    .value
+            );
 
-        bufferCircle = L.circle(bufferLatLng, {
-            radius: raioM,
-            color: "#f59e0b",
-            fillColor: "#f59e0b",
-            fillOpacity: 0.20,
-            weight: 2,
-            interactive: false
-        }).addTo(mapIBGE);
+        document
+            .getElementById(
+                "buffer-raio"
+            )
+            .innerText =
+            raioM + "m";
 
         /*
-         * CORREÇÃO IMPORTANTE:
-         * bufferLatLng agora é L.LatLng, portanto lng/lat são valores válidos.
+         * Círculo visual no Leaflet.
          */
-        const ponto = turf.point([
-            bufferLatLng.lng,
-            bufferLatLng.lat
-        ]);
+        if(bufferCircle) {
+            mapIBGE.removeLayer(
+                bufferCircle
+            );
+        }
 
-        const bufferGeo = turf.buffer(
-            ponto,
-            raioM / 1000,
-            { units: "kilometers" }
-        );
+        bufferCircle =
+            L.circle(
+                bufferLatLng,
+                {
+                    radius:
+                        raioM,
 
-        const bboxBuffer = turf.bbox(bufferGeo);
+                    color:
+                        "#f59e0b",
 
-        let estimativaPop = 0;
-        let setoresIntersectados = 0;
-        let setoresFallback = 0;
+                    fillColor:
+                        "#f59e0b",
 
-        geoSetores.features.forEach(sec => {
-            if(!sec || !sec.geometry) return;
+                    fillOpacity:
+                        0.22,
 
-            const pop16 = calcularPopulacao16Mais(sec.properties || {});
-            if(pop16 <= 0) return;
+                    weight:
+                        2,
 
-            try {
-                const bboxSec = sec.__bboxCache || turf.bbox(sec);
-                sec.__bboxCache = bboxSec;
+                    interactive:
+                        false
+                }
+            )
+            .addTo(mapIBGE);
 
-                if(!bboxSobrepoe(bboxBuffer, bboxSec)) return;
-                if(!turf.booleanIntersects(bufferGeo, sec)) return;
+        /*
+         * =====================================================
+         * ESTIMATIVA DE POPULAÇÃO NO BUFFER
+         * =====================================================
+         *
+         * Não fazemos mais polygon intersection.
+         *
+         * Para cada setor:
+         * - verifica quantas amostras estão dentro do raio;
+         * - calcula a proporção;
+         * - aplica essa proporção sobre a população 16+.
+         */
 
-                /*
-                 * Distribuição proporcional pela área do setor que está
-                 * efetivamente dentro do raio.
-                 */
-                const inter = turf.intersect(bufferGeo, sec);
+        let populacaoBuffer =
+            0;
 
-                if(inter) {
-                    const areaSetor = turf.area(sec);
-                    const areaInter = turf.area(inter);
+        let setoresComContribuicao =
+            0;
 
-                    if(areaSetor > 0 && areaInter > 0) {
-                        const proporcao = Math.min(1, areaInter / areaSetor);
+        let totalPontosDentro =
+            0;
 
-                        estimativaPop += pop16 * proporcao;
-                        setoresIntersectados++;
-                        return;
+        let totalAmostrasTestadas =
+            0;
+
+        geoSetores.features
+            .forEach(sec => {
+
+                const pop16 =
+                    calcularPopulacao16Mais(
+                        sec.properties || {}
+                    );
+
+                if(pop16 <= 0) {
+                    return;
+                }
+
+                const amostras =
+                    obterAmostrasSetor(sec);
+
+                if(!amostras.length) {
+                    return;
+                }
+
+                let dentro =
+                    0;
+
+                amostras.forEach(p => {
+
+                    totalAmostrasTestadas++;
+
+                    /*
+                     * Leaflet distanceTo calcula distância
+                     * geodésica em metros.
+                     */
+                    const distancia =
+                        bufferLatLng.distanceTo(
+                            L.latLng(
+                                p.lat,
+                                p.lng
+                            )
+                        );
+
+                    if(distancia <= raioM) {
+
+                        dentro++;
+
+                        totalPontosDentro++;
                     }
+                });
+
+                if(dentro > 0) {
+
+                    const proporcao =
+                        dentro /
+                        amostras.length;
+
+                    populacaoBuffer +=
+                        pop16 *
+                        proporcao;
+
+                    setoresComContribuicao++;
                 }
-            } catch(e) {
-                // Vai para fallback abaixo.
-            }
+            });
 
-            /*
-             * Fallback: se houver problema topológico, utiliza o centroide.
-             * É menos preciso, mas impede o resultado de ficar artificialmente 0.
-             */
-            try {
-                const centroide = turf.centroid(sec);
+        const resultado =
+            Math.round(
+                populacaoBuffer
+            );
 
-                if(turf.booleanPointInPolygon(centroide, bufferGeo)) {
-                    estimativaPop += pop16;
-                    setoresFallback++;
-                }
-            } catch(e) {}
-        });
-
-        const resultado = Math.round(estimativaPop);
-
-        document.getElementById("buffer-resultado").innerText =
+        document
+            .getElementById(
+                "buffer-resultado"
+            )
+            .innerText =
             format(resultado);
 
-        console.info("=== BUFFER POPULAÇÃO 16+ ===");
-        console.info("Local:", document.getElementById("buffer-escola").innerText);
-        console.info("Raio:", raioM, "m");
-        console.info("Centro:", bufferLatLng.lat, bufferLatLng.lng);
-        console.info("Setores por interseção:", setoresIntersectados);
-        console.info("Setores por fallback:", setoresFallback);
-        console.info("População estimada 16+:", resultado);
+        /*
+         * Diagnóstico para conferência no F12.
+         */
+        console.group(
+            "BUFFER POPULAÇÃO 16+"
+        );
+
+        console.log(
+            "Local:",
+            document
+                .getElementById(
+                    "buffer-escola"
+                )
+                .innerText
+        );
+
+        console.log(
+            "Centro:",
+            bufferLatLng.lat,
+            bufferLatLng.lng
+        );
+
+        console.log(
+            "Raio:",
+            raioM,
+            "metros"
+        );
+
+        console.log(
+            "Setores contribuindo:",
+            setoresComContribuicao
+        );
+
+        console.log(
+            "Amostras dentro:",
+            totalPontosDentro,
+            "/",
+            totalAmostrasTestadas
+        );
+
+        console.log(
+            "População estimada 16+:",
+            resultado
+        );
+
+        console.groupEnd();
     }
 
     /* =========================================================
