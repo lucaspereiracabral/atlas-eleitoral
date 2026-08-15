@@ -97,6 +97,63 @@
             flex-direction: column;
         }
 
+        /* Layout da Aba de Mapas com Sidebar Lateral */
+        .map-layout {
+            display: flex;
+            flex: 1;
+            gap: 20px;
+            height: calc(100vh - 120px);
+        }
+
+        #sidebar-bairros {
+            width: 350px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 15px;
+            overflow-y: auto;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .sidebar-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 6px;
+        }
+
+        .bairro-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.85rem;
+        }
+
+        .bairro-item:hover {
+            background-color: var(--bg-color);
+        }
+
+        .bairro-nome {
+            color: var(--text-main);
+            font-weight: 500;
+        }
+
+        .bairro-eleitores {
+            color: var(--secondary-color);
+            font-weight: bold;
+        }
+
+        #map {
+            flex: 1;
+            height: 100%;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+
         /* Estilo da Página Inicial (Apresentação do Projeto) */
         .home-container {
             max-width: 900px;
@@ -140,16 +197,36 @@
             margin-bottom: 8px;
         }
 
-        /* Estilo da Página de Mapas */
-        #map {
-            flex: 1;
-            width: 100%;
-            border-radius: 6px;
-            border: 1px solid var(--border-color);
-            min-height: 500px;
+        /* Cards de Indicadores Rápidos (KPIs) */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
         }
 
-        /* Estilo da Página de Gráficos e Estatísticas */
+        .kpi-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .kpi-value {
+            font-size: 1.50rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .kpi-label {
+            font-size: 0.80rem;
+            color: var(--text-muted);
+            margin-top: 5px;
+            text-transform: uppercase;
+        }
+
+        /* Gráficos */
         .charts-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -180,8 +257,17 @@
         }
 
         @media (max-width: 900px) {
-            .charts-grid, .home-grid {
+            .charts-grid, .home-grid, .kpi-grid, .map-layout {
+                flex-direction: column;
                 grid-template-columns: 1fr;
+                height: auto;
+            }
+            #sidebar-bairros {
+                width: 100%;
+                max-height: 250px;
+            }
+            #map {
+                min-height: 400px;
             }
             header {
                 flex-direction: column;
@@ -200,7 +286,7 @@
         </div>
         <nav>
             <button class="nav-btn active" onclick="mudarAba('inicio', event)">Início</button>
-            <button class="nav-btn" onclick="mudarAba('mapas', event)">Locais de Votação</button>
+            <button class="nav-btn" onclick="mudarAba('mapas', event)">Mapa e Bairros</button>
             <button class="nav-btn" onclick="mudarAba('estatisticas', event)">Estatísticas Eleitorais</button>
         </nav>
     </header>
@@ -213,33 +299,61 @@
             
             <div class="home-grid">
                 <div class="home-card">
-                    <h3>🗺️ Análise Espacial</h3>
-                    <p>Visualize os locais de votação espacializados no município, dimensionados pelo quantitativo de eleitores.</p>
+                    <h3>🗺️ Análise Espacial por Bairros</h3>
+                    <p>Explore os limites municipais cruzados com os locais de votação e verifique o eleitorado consolidado por região.</p>
                 </div>
                 <div class="home-card">
                     <h3>📊 Demografia Eleitoral</h3>
-                    <p>Consulte indicadores detalhados sobre gênero, grau de instrução, faixa etária e estado civil do eleitorado.</p>
+                    <p>Consulte indicadores detalhados sobre gênero, grau de instrução, faixa etária, estado civil, cor/raça, biometria e voto obrigatório/facultativo.</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ABA 2: MAPAS -->
+    <!-- ABA 2: MAPAS E SIDEBAR DE BAIRROS -->
     <div id="mapas" class="tab-content">
-        <div style="margin-bottom: 12px; font-weight: 600; color: var(--primary-color);">Distribuição Espacial dos Locais de Votação</div>
-        <div id="map"></div>
+        <div class="map-layout">
+            <div id="sidebar-bairros">
+                <div class="sidebar-title">Eleitores por Bairro</div>
+                <div id="lista-bairros-conteudo" style="font-size: 0.85rem; color: var(--text-muted);">Calculando dados espaciais...</div>
+            </div>
+            <div id="map"></div>
+        </div>
     </div>
 
     <!-- ABA 3: GRÁFICOS E ESTATÍSTICAS -->
     <div id="estatisticas" class="tab-content">
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-value">172.242</div>
+                <div class="kpi-label">Eleitores com Biometria</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-value">1.961</div>
+                <div class="kpi-label">Eleitores com Deficiência</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-value">45</div>
+                <div class="kpi-label">Eleitores com Nome Social</div>
+            </div>
+        </div>
+
         <div class="charts-grid">
             <div class="chart-box">
                 <div class="chart-title">Eleitorado por Gênero</div>
                 <div class="chart-container"><canvas id="chartGenero"></canvas></div>
             </div>
             <div class="chart-box">
+                <div class="chart-title">Tipo de Voto (Obrigatório vs. Facultativo)</div>
+                <div class="chart-container"><canvas id="chartTipoVoto"></canvas></div>
+            </div>
+            <div class="chart-box">
                 <div class="chart-title">Eleitorado por Estado Civil</div>
                 <div class="chart-container"><canvas id="chartEstadoCivil"></canvas></div>
+            </div>
+            <div class="chart-box">
+                <div class="chart-title">Eleitorado por Cor / Raça</div>
+                <div class="chart-container"><canvas id="chartRaca"></canvas></div>
             </div>
             <div class="chart-box" style="grid-column: span 2;">
                 <div class="chart-title">Eleitorado por Grau de Instrução</div>
@@ -255,6 +369,8 @@
     <!-- Bibliotecas Externas -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Turf.js para Análise Espacial -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
 
     <script>
         // Lógica de Alternância das Guias (Abas)
@@ -289,16 +405,69 @@
             return null;
         }
 
-        // Carrega GeoJSON no Mapa
-        fetch('locais_de_votacao_e_secoes.geojson')
-            .then(res => res.json())
-            .then(dadosGeo => {
-                L.geoJSON(dadosGeo, {
+        // CARREGAMENTO DOS GEODADOS (Bairros e Locais de Votação com cálculo espacial)
+        Promise.all([
+            fetch('bairros_itajai.geojson').then(res => res.json()).catch(() => null),
+            fetch('locais_de_votacao_e_secoes.geojson').then(res => res.json()).catch(() => null)
+        ]).then(([bairrosGeo, locaisGeo]) => {
+            
+            let eleitoresPorBairro = {};
+
+            // 1. Processa Bairros no Mapa
+            if (bairrosGeo) {
+                bairrosGeo.features.forEach(b => {
+                    const props = b.properties || {};
+                    const nomeBairro = obterValorGeo(props, ['nome', 'bairro', 'NOME', 'BAIRRO', 'nome_bairro']) || "Região";
+                    eleitoresPorBairro[nomeBairro] = 0;
+                });
+
+                L.geoJSON(bairrosGeo, {
+                    style: {
+                        color: '#1e3a8a',
+                        weight: 1.5,
+                        fillColor: '#0284c7',
+                        fillOpacity: 0.15
+                    },
+                    onEachFeature: (feature, layer) => {
+                        const props = feature.properties || {};
+                        const nomeBairro = obterValorGeo(props, ['nome', 'bairro', 'NOME', 'BAIRRO', 'nome_bairro']) || "Bairro";
+                        layer.bindPopup(`<b>Bairro:</b> ${nomeBairro}`);
+                    }
+                }).addTo(map);
+            }
+
+            // 2. Processa Locais de Votação e Faz o Cálculo Espacial por Bairro
+            if (locaisGeo) {
+                locaisGeo.features.forEach(loc => {
+                    const ploc = loc.properties || {};
+                    const eleitores = Number(obterValorGeo(ploc, ['TOTAL_EL_1', 'total_el_1'])) || 0;
+                    
+                    // Identifica bairro por intersecção turf.js ou atributo interno se houver
+                    let bairroLoc = obterValorGeo(ploc, ['BAIRRO_1', 'bairro_1', 'bairro']) || "Outros";
+
+                    if (bairrosGeo && loc.geometry && loc.geometry.coordinates) {
+                        try {
+                            const pt = turf.point(loc.geometry.coordinates);
+                            for (let b of bairrosGeo.features) {
+                                if (turf.booleanPointInPolygon(pt, b)) {
+                                    const bprops = b.properties || {};
+                                    bairroLoc = obterValorGeo(bprops, ['nome', 'bairro', 'NOME', 'BAIRRO']) || bairroLoc;
+                                    break;
+                                }
+                            }
+                        } catch(e) {}
+                    }
+
+                    eleitoresPorBairro[bairroLoc] = (eleitoresPorBairro[bairroLoc] || 0) + eleitores;
+                });
+
+                // Plota os pontos de votação no mapa
+                L.geoJSON(locaisGeo, {
                     pointToLayer: (feature, latlng) => {
                         const p = feature.properties || {};
                         const eleitores = Number(obterValorGeo(p, ['TOTAL_EL_1', 'total_el_1'])) || 150;
                         return L.circleMarker(latlng, {
-                            radius: Math.max(6, Math.min(24, eleitores / 250)),
+                            radius: Math.max(5, Math.min(22, eleitores / 250)),
                             fillColor: "#0284c7", color: "#ffffff", weight: 1.5, fillOpacity: 0.85
                         });
                     },
@@ -313,11 +482,28 @@
                         `);
                     }
                 }).addTo(map);
+            }
+
+            // 3. Monta a Barra Lateral (Sidebar) com os Bairros e Eleitores
+            const containerSidebar = document.getElementById('lista-bairros-conteudo');
+            let htmlBairros = "";
+            
+            // Ordena os bairros por número de eleitores (do maior para o menor)
+            const bairrosOrdenados = Object.entries(eleitoresPorBairro).sort((a, b) => b[1] - a[1]);
+
+            bairrosOrdenados.forEach(([bairro, total]) => {
+                htmlBairros += `
+                    <div class="bairro-item">
+                        <span class="bairro-nome">${bairro}</span>
+                        <span class="bairro-eleitores">${total.toLocaleString('pt-BR')} eleitores</span>
+                    </div>
+                `;
             });
 
-        // DADOS CONSOLIDADOS DO CSV DO ELEITORADO (2026)
-        
-        // 1. Gênero
+            containerSidebar.innerHTML = htmlBairros || "Nenhum dado de bairro encontrado.";
+        });
+
+        // DADOS CONSOLIDADOS DO ELEITORADO (2026) PARA OS GRÁFICOS
         new Chart(document.getElementById('chartGenero'), {
             type: 'bar',
             data: {
@@ -327,7 +513,15 @@
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
         });
 
-        // 2. Estado Civil
+        new Chart(document.getElementById('chartTipoVoto'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Voto Obrigatório', 'Voto Facultativo'],
+                datasets: [{ data: [167134, 14990], backgroundColor: ['#1e3a8a', '#38bdf8'] }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
         new Chart(document.getElementById('chartEstadoCivil'), {
             type: 'bar',
             data: {
@@ -337,7 +531,15 @@
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
         });
 
-        // 3. Grau de Instrução (Barras Horizontais)
+        new Chart(document.getElementById('chartRaca'), {
+            type: 'bar',
+            data: {
+                labels: ['Branca', 'Parda', 'Preta', 'Amarela', 'Indígena', 'Não Informado'],
+                datasets: [{ data: [27870, 12596, 3419, 209, 59, 137971], backgroundColor: '#0284c7', borderRadius: 4 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        });
+
         new Chart(document.getElementById('chartInstrucao'), {
             type: 'bar',
             data: {
@@ -356,7 +558,6 @@
             options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
         });
 
-        // 4. Faixa Etária
         new Chart(document.getElementById('chartFaixaEtaria'), {
             type: 'bar',
             data: {
