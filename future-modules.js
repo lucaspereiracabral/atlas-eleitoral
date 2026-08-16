@@ -162,3 +162,13 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
     else iniciar();
 })();
+
+// Dashboard moderno da página inicial.
+(() => {
+    if (document.getElementById('atlas-home-dashboard-loader')) return;
+    const script = document.createElement('script');
+    script.id = 'atlas-home-dashboard-loader';
+    script.src = 'home-dashboard.js?v=1';
+    script.defer = true;
+    document.head.appendChild(script);
+})();
