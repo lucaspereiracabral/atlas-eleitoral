@@ -1,0 +1,36 @@
+name: Force home dashboard cache refresh
+
+on:
+  push:
+    paths:
+      - '.github/workflows/bump-home-dashboard-cache.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  bump-cache:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Bump future modules cache key
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old = 'future-modules.js?v=4'
+          new = 'future-modules.js?v=5'
+          if old not in s:
+              raise SystemExit('Expected cache key not found')
+          p.write_text(s.replace(old, new), encoding='utf-8')
+          PY
+      - name: Commit cache refresh
+        run: |
+          git config user.name "GeoCode"
+          git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
+          git add index.html
+          git commit -m "Load updated home dashboard script"
+          git push origin main
