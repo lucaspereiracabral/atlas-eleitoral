@@ -1,0 +1,28 @@
+name: Force dashboard theme cache refresh
+on:
+  push:
+    paths:
+      - '.github/workflows/bump-dashboard-v6.yml'
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bump future modules cache version
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace('future-modules.js?v=5', 'future-modules.js?v=6')
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit change
+        run: |
+          git config user.name "GeoCode"
+          git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Load executive dashboard theme v6"
+          git push
