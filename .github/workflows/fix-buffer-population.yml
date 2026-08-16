@@ -23,14 +23,14 @@ jobs:
 
           new_fn = r'''    function atualizarBuffer() {
         if (!geoSetores || !Array.isArray(geoSetores.features) || !bufferLatLng) {
-            const out = document.getElementById("buffer-resultado");
-            if (out) out.innerText = "...";
             return;
         }
 
         const raioM = Number(document.getElementById("buffer-slider").value || 500);
+        const raioKm = raioM / 1000;
         document.getElementById("buffer-raio").innerText = raioM + "m";
 
+        // Círculo visual no Leaflet.
         if (bufferCircle) mapIBGE.removeLayer(bufferCircle);
         bufferCircle = L.circle(bufferLatLng, {
             radius: raioM,
@@ -41,76 +41,56 @@ jobs:
             interactive: false
         }).addTo(mapIBGE);
 
-        const centro = turf.point([bufferLatLng.lng, bufferLatLng.lat]);
-        let populacaoBuffer = 0;
-        let setoresComContribuicao = 0;
-        let totalAmostrasTestadas = 0;
-        let totalPontosDentro = 0;
-
-        geoSetores.features.forEach(sec => {
-            try {
-                const popApta = calcularPopulacaoApta2026(sec.properties || {});
-                if (!(popApta > 0) || !sec.geometry) return;
-
-                let amostras = obterAmostrasSetor(sec) || [];
-
-                // Fallback adicional para setores estreitos ou geometrias problemáticas.
-                if (!amostras.length) {
-                    try {
-                        const c = turf.centroid(sec);
-                        const [lng, lat] = c.geometry.coordinates;
-                        amostras = [{ lng, lat }];
-                    } catch (e) {
-                        return;
-                    }
-                }
-
-                let dentro = 0;
-                amostras.forEach(p => {
-                    try {
-                        totalAmostrasTestadas++;
-                        const ponto = turf.point([Number(p.lng), Number(p.lat)]);
-                        const distanciaM = turf.distance(centro, ponto, { units: 'kilometers' }) * 1000;
-                        if (Number.isFinite(distanciaM) && distanciaM <= raioM) {
-                            dentro++;
-                            totalPontosDentro++;
-                        }
-                    } catch (e) {}
-                });
-
-                if (dentro > 0) {
-                    populacaoBuffer += popApta * (dentro / amostras.length);
-                    setoresComContribuicao++;
-                }
-            } catch (e) {
-                console.warn('Setor ignorado no cálculo do buffer:', e);
-            }
+        // Buffer geográfico Turf em WGS84.
+        const centro = turf.point([
+            Number(bufferLatLng.lng),
+            Number(bufferLatLng.lat)
+        ]);
+        const areaRaio = turf.buffer(centro, raioKm, {
+            units: "kilometers",
+            steps: 64
         });
 
-        // Fallback: caso a amostragem não encontre nada, usa centroides dos setores.
-        if (populacaoBuffer <= 0) {
-            geoSetores.features.forEach(sec => {
+        let populacaoBuffer = 0;
+        let setoresSelecionados = 0;
+
+        geoSetores.features.forEach(sec => {
+            if (!sec || !sec.geometry) return;
+
+            const popApta = calcularPopulacaoApta2026(sec.properties || {});
+            if (!(popApta > 0)) return;
+
+            let intersecta = false;
+
+            try {
+                // Critério principal: qualquer interseção do setor com o raio.
+                intersecta = turf.booleanIntersects(sec, areaRaio);
+            } catch (e) {
+                // Fallback para geometrias que causem erro no booleanIntersects.
                 try {
-                    const popApta = calcularPopulacaoApta2026(sec.properties || {});
-                    if (!(popApta > 0) || !sec.geometry) return;
-                    const c = turf.centroid(sec);
-                    const distanciaM = turf.distance(centro, c, { units: 'kilometers' }) * 1000;
-                    if (Number.isFinite(distanciaM) && distanciaM <= raioM) {
-                        populacaoBuffer += popApta;
-                        setoresComContribuicao++;
-                    }
-                } catch (e) {}
-            });
-        }
+                    const centroide = turf.centroid(sec);
+                    const distanciaKm = turf.distance(centro, centroide, {
+                        units: "kilometers"
+                    });
+                    intersecta = Number.isFinite(distanciaKm) && distanciaKm <= raioKm;
+                } catch (err) {
+                    intersecta = false;
+                }
+            }
+
+            if (intersecta) {
+                populacaoBuffer += popApta;
+                setoresSelecionados++;
+            }
+        });
 
         const resultado = Math.max(0, Math.round(populacaoBuffer));
         document.getElementById("buffer-resultado").innerText = format(resultado);
 
-        console.info('BUFFER POPULAÇÃO APTA 2026', {
+        console.info("BUFFER POPULAÇÃO APTA 2026", {
+            centro: [bufferLatLng.lat, bufferLatLng.lng],
             raioM,
-            setoresComContribuicao,
-            totalAmostrasTestadas,
-            totalPontosDentro,
+            setoresSelecionados,
             resultado
         });
     }
@@ -124,5 +104,5 @@ jobs:
           git config user.name "GeoCode"
           git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
           git add index.html
-          git commit -m "Fix population estimate inside map buffer" || exit 0
+          git commit -m "Sum electoral population of sectors intersecting buffer" || exit 0
           git push
