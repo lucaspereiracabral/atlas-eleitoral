@@ -1,5 +1,5 @@
 // Módulos futuros desativados temporariamente.
-// O Atlas mantém apenas os quatro módulos principais.
+// O Atlas mantém os módulos analíticos ativos e o cálculo do buffer populacional.
 //
 // BUFFER V5 — cálculo independente de Turf para interseção.
 // Regra: qualquer setor que tocar/intersectar o círculo entra integralmente na soma.
@@ -131,7 +131,7 @@
     else iniciar();
 })();
 
-// Tema executivo da home e dos painéis analíticos.
+// Tema executivo e módulos analíticos.
 (() => {
     if (!document.getElementById('atlas-dashboard-theme')) {
         const link = document.createElement('link');
@@ -153,6 +153,14 @@
         const script = document.createElement('script');
         script.id = 'atlas-turnout-loader';
         script.src = 'turnout.js?v=2';
+        script.defer = true;
+        document.head.appendChild(script);
+    }
+
+    if (!document.getElementById('atlas-evolution-loader')) {
+        const script = document.createElement('script');
+        script.id = 'atlas-evolution-loader';
+        script.src = 'evolution.js?v=1';
         script.defer = true;
         document.head.appendChild(script);
     }
