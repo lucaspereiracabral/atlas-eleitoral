@@ -1,1 +1,1 @@
-2026-08-16T17:17-03:00 stop auth loop and expose init error
+2026-08-16T17:18-03:00 stop auth loop and expose init error
