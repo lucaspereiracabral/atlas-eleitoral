@@ -1,0 +1,103 @@
+name: Fix census population buffer polygon
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-census-buffer-polygon.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch buffer calculation only
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          marker = '''        let populacaoBuffer =
+            0;
+'''
+          insert = '''        // Polígono geográfico do raio em WGS84. Usamos Turf para que
+        // os testes usem exatamente o mesmo sistema de coordenadas
+        // dos setores censitários GeoJSON.
+        const centroBufferTurf = turf.point([
+            Number(bufferLatLng.lng),
+            Number(bufferLatLng.lat)
+        ]);
+
+        const poligonoBufferTurf = turf.buffer(
+            centroBufferTurf,
+            raioM / 1000,
+            { units: "kilometers", steps: 64 }
+        );
+
+        let populacaoBuffer =
+            0;
+'''
+          if marker not in s:
+              raise SystemExit('Population buffer marker not found')
+          s = s.replace(marker, insert, 1)
+
+          old = '''                    /*
+                     * Leaflet distanceTo calcula distância
+                     * geodésica em metros.
+                     */
+                    const distancia =
+                        bufferLatLng.distanceTo(
+                            L.latLng(
+                                p.lat,
+                                p.lng
+                            )
+                        );
+
+                    if(distancia <= raioM) {
+
+                        dentro++;
+
+                        totalPontosDentro++;
+                    }
+'''
+          new = '''                    const pontoAmostra = turf.point([
+                        Number(p.lng),
+                        Number(p.lat)
+                    ]);
+
+                    let estaDentro = false;
+                    try {
+                        estaDentro = turf.booleanPointInPolygon(
+                            pontoAmostra,
+                            poligonoBufferTurf
+                        );
+                    } catch(e) {
+                        // Fallback geodésico em quilômetros.
+                        const distanciaKm = turf.distance(
+                            centroBufferTurf,
+                            pontoAmostra,
+                            { units: "kilometers" }
+                        );
+                        estaDentro = distanciaKm <= (raioM / 1000);
+                    }
+
+                    if(estaDentro) {
+                        dentro++;
+                        totalPontosDentro++;
+                    }
+'''
+          if old not in s:
+              raise SystemExit('Old Leaflet distance block not found')
+          s = s.replace(old, new, 1)
+
+          p.write_text(s, encoding='utf-8')
+          print('Buffer calculation patched with Turf polygon.')
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name "GeoCode"
+          git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
+          rm .github/workflows/fix-census-buffer-polygon.yml
+          git add index.html .github/workflows/fix-census-buffer-polygon.yml
+          git commit -m "Fix population inside census buffer"
+          git push
