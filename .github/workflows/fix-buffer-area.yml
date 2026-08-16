@@ -1,0 +1,165 @@
+name: Fix population buffer by area
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-buffer-area.yml'
+      - 'index.html'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-buffer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Replace buffer calculation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+
+          start = text.find('    function atualizarBuffer() {')
+          if start < 0:
+              raise SystemExit('atualizarBuffer not found')
+
+          marker = '    /* =========================================================\n       GRÁFICOS'
+          end = text.find(marker, start)
+          if end < 0:
+              raise SystemExit('graphs marker not found')
+
+          new_func = r'''    function atualizarBuffer() {
+        if (!geoSetores || !Array.isArray(geoSetores.features) || !bufferLatLng) return;
+
+        const raioM = Number(document.getElementById("buffer-slider").value || 0);
+        document.getElementById("buffer-raio").innerText = raioM + "m";
+
+        if (bufferCircle) mapIBGE.removeLayer(bufferCircle);
+        bufferCircle = L.circle(bufferLatLng, {
+            radius: raioM,
+            color: "#f59e0b",
+            fillColor: "#f59e0b",
+            fillOpacity: 0.22,
+            weight: 2,
+            interactive: false
+        }).addTo(mapIBGE);
+
+        // Buffer geográfico real em WGS84.
+        const centro = [Number(bufferLatLng.lng), Number(bufferLatLng.lat)];
+        const bufferGeo = turf.circle(centro, raioM / 1000, {
+            steps: 96,
+            units: "kilometers"
+        });
+        const bboxBuffer = turf.bbox(bufferGeo);
+
+        let populacaoBuffer = 0;
+        let setoresComContribuicao = 0;
+        let somaProporcoes = 0;
+
+        geoSetores.features.forEach(sec => {
+            if (!sec || !sec.geometry) return;
+
+            const props = sec.properties || {};
+            const popApta = Number(
+                props.pop_apta_2026 ?? calcularPopulacaoApta2026(props) ?? 0
+            );
+            if (!(popApta > 0)) return;
+
+            // Filtro rápido por bounding box antes da interseção.
+            let bboxSetor;
+            try {
+                bboxSetor = turf.bbox(sec);
+                if (
+                    bboxSetor[2] < bboxBuffer[0] ||
+                    bboxSetor[0] > bboxBuffer[2] ||
+                    bboxSetor[3] < bboxBuffer[1] ||
+                    bboxSetor[1] > bboxBuffer[3]
+                ) return;
+            } catch (e) {
+                return;
+            }
+
+            let proporcao = 0;
+
+            try {
+                const areaSetor = turf.area(sec);
+                if (!(areaSetor > 0)) return;
+
+                const intersecao = turf.intersect(sec, bufferGeo);
+                if (intersecao) {
+                    const areaDentro = turf.area(intersecao);
+                    proporcao = Math.max(0, Math.min(1, areaDentro / areaSetor));
+                }
+            } catch (e) {
+                // Fallback robusto: grade de pontos no setor usando distância geodésica.
+                try {
+                    const bbox = bboxSetor || turf.bbox(sec);
+                    const N = 12;
+                    let total = 0;
+                    let dentro = 0;
+
+                    for (let x = 0; x < N; x++) {
+                        for (let y = 0; y < N; y++) {
+                            const lng = bbox[0] + ((x + 0.5) / N) * (bbox[2] - bbox[0]);
+                            const lat = bbox[1] + ((y + 0.5) / N) * (bbox[3] - bbox[1]);
+                            const pt = turf.point([lng, lat]);
+
+                            if (!turf.booleanPointInPolygon(pt, sec)) continue;
+                            total++;
+
+                            const distKm = turf.distance(
+                                turf.point(centro),
+                                pt,
+                                { units: "kilometers" }
+                            );
+                            if (distKm * 1000 <= raioM) dentro++;
+                        }
+                    }
+
+                    if (total > 0) proporcao = dentro / total;
+                } catch (_) {}
+            }
+
+            if (proporcao > 0) {
+                populacaoBuffer += popApta * proporcao;
+                setoresComContribuicao++;
+                somaProporcoes += proporcao;
+            }
+        });
+
+        const resultado = Math.round(populacaoBuffer);
+        document.getElementById("buffer-resultado").innerText = format(resultado);
+
+        console.group("BUFFER POPULAÇÃO APTA 2026 - INTERSEÇÃO POR ÁREA");
+        console.log("Centro [lng, lat]:", centro);
+        console.log("Raio:", raioM, "m");
+        console.log("Setores contribuindo:", setoresComContribuicao);
+        console.log("Soma das proporções:", somaProporcoes);
+        console.log("População apta estimada no buffer:", resultado);
+        console.groupEnd();
+    }
+
+'''
+
+          updated = text[:start] + new_func + text[end:]
+          if updated == text:
+              raise SystemExit('no changes made')
+          path.write_text(updated, encoding='utf-8')
+          PY
+
+      - name: Commit patch
+        run: |
+          git config user.name "GeoCode"
+          git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+          git commit -m "Calculate buffer population by sector area intersection"
+          git push
