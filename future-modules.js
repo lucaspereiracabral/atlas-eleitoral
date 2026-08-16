@@ -148,4 +148,12 @@
         script.defer = true;
         document.head.appendChild(script);
     }
+
+    if (!document.getElementById('atlas-turnout-loader')) {
+        const script = document.createElement('script');
+        script.id = 'atlas-turnout-loader';
+        script.src = 'turnout.js?v=1';
+        script.defer = true;
+        document.head.appendChild(script);
+    }
 })();
