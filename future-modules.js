@@ -37,13 +37,15 @@ window.atualizarBuffer = function atualizarBuffer() {
     let total = 0;
     let setoresIntersectados = 0;
     const codigos = [];
+    const erros = [];
 
     geoSetores.features.forEach(sec => {
-        if (!sec?.geometry) return;
+        if (!sec || !sec.geometry) return;
 
         try {
             const setor = turf.feature(sec.geometry, sec.properties || {});
-            if (!turf.booleanIntersects(setor, circulo)) return;
+            const intersecao = turf.intersect(setor, circulo);
+            if (!intersecao) return;
 
             const pop = Math.round(calcularPopulacaoApta2026(sec.properties || {}));
             if (pop <= 0) return;
@@ -51,23 +53,23 @@ window.atualizarBuffer = function atualizarBuffer() {
             total += pop;
             setoresIntersectados++;
 
-            try {
-                const codigo = getProp(sec.properties || {}, ['cd_setor', 'CD_SETOR']);
-                if (codigo) codigos.push(String(codigo));
-            } catch (e) {}
+            const codigo = getProp(sec.properties || {}, ['cd_setor', 'CD_SETOR']);
+            if (codigo) codigos.push(String(codigo));
         } catch (e) {
-            console.warn('Falha ao testar setor no buffer:', e);
+            erros.push(String(e?.message || e));
         }
     });
 
     const out = document.getElementById('buffer-resultado');
     if (out) out.innerText = format(total);
 
-    console.info('BUFFER - SETORES INTERSECTADOS', {
+    console.info('BUFFER - SOMA DE SETORES INTERSECTADOS', {
         centro,
         raioM,
+        totalSetores: geoSetores.features.length,
         setoresIntersectados,
         total,
-        codigos
+        codigos,
+        erros: erros.slice(0, 10)
     });
 };
