@@ -12,5 +12,64 @@ function injectStyle(){if(document.getElementById('future-modules-style'))return
 function show(id,btn){document.querySelectorAll('.tab-content').forEach(x=>x.classList.remove('active'));const el=document.getElementById(id);if(el)el.classList.add('active');document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active'));btn?.classList.add('active')}
 function removeMarkedHomeKpi(){document.querySelectorAll('.kpi-card').forEach(card=>{const txt=(card.textContent||'').toLowerCase();if(txt.includes('biometria cadastrada'))card.remove()})}
 function build(){injectStyle();removeMarkedHomeKpi();const nav=document.querySelector('header nav');if(!nav)return;modules.forEach(m=>{if(document.getElementById(m.id))return;const b=document.createElement('button');b.className='nav-btn future-nav';b.type='button';b.textContent=m.label;b.onclick=()=>show(m.id,b);nav.appendChild(b);const sec=document.createElement('section');sec.id=m.id;sec.className='tab-content';sec.innerHTML=`<div class="future-page"><div class="future-hero"><div class="future-badge">${m.icon} Em desenvolvimento</div><h2>${m.title}</h2><p>${m.desc}</p></div><div class="future-grid">${m.items.map((x,i)=>`<div class="future-card"><strong>${String(i+1).padStart(2,'0')} · ${x}</strong><span>Este componente será integrado ao Atlas conforme as bases territoriais forem consolidadas e validadas.</span></div>`).join('')}</div></div>`;document.body.appendChild(sec)})}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',build);else build();
+
+// Correção do cálculo da população no buffer do mapa censitário.
+// Usa turf.distance em quilômetros sobre as mesmas amostras dos setores
+// que alimentam o mapa coroplético, preservando a estimativa por proporção.
+function instalarCorrecaoBuffer(){
+  window.atualizarBuffer=function(){
+    if(!geoSetores || !Array.isArray(geoSetores.features) || !bufferLatLng) return;
+
+    const slider=document.getElementById('buffer-slider');
+    const raioM=Number(slider?.value || 500);
+    const raioKm=raioM/1000;
+    const raioLabel=document.getElementById('buffer-raio');
+    if(raioLabel) raioLabel.innerText=raioM+'m';
+
+    if(bufferCircle){ try{ mapIBGE.removeLayer(bufferCircle); }catch(e){} }
+    bufferCircle=L.circle(bufferLatLng,{radius:raioM,color:'#f59e0b',fillColor:'#f59e0b',fillOpacity:.22,weight:2,interactive:false}).addTo(mapIBGE);
+
+    const centro=turf.point([Number(bufferLatLng.lng),Number(bufferLatLng.lat)]);
+    let populacaoBuffer=0;
+    let setoresComContribuicao=0;
+
+    for(const sec of geoSetores.features){
+      const popApta=Number(calcularPopulacaoApta2026(sec.properties||{})||0);
+      if(popApta<=0) continue;
+
+      let amostras=[];
+      try{ amostras=obterAmostrasSetor(sec)||[]; }catch(e){}
+
+      if(!amostras.length){
+        try{
+          const c=turf.centroid(sec).geometry.coordinates;
+          amostras=[{lng:c[0],lat:c[1]}];
+        }catch(e){ continue; }
+      }
+
+      let dentro=0;
+      for(const p of amostras){
+        try{
+          const ponto=turf.point([Number(p.lng),Number(p.lat)]);
+          const d=turf.distance(centro,ponto,{units:'kilometers'});
+          if(Number.isFinite(d) && d<=raioKm) dentro++;
+        }catch(e){}
+      }
+
+      if(dentro>0){
+        populacaoBuffer += popApta*(dentro/amostras.length);
+        setoresComContribuicao++;
+      }
+    }
+
+    const resultado=Math.round(populacaoBuffer);
+    const out=document.getElementById('buffer-resultado');
+    if(out) out.innerText=format(resultado);
+
+    console.info('BUFFER CENSO corrigido:',{raioM,setoresComContribuicao,resultado,totalSetores:geoSetores.features.length});
+  };
+}
+
+function boot(){build();instalarCorrecaoBuffer()}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
