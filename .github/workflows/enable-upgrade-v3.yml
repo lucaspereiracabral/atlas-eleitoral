@@ -1,0 +1,31 @@
+name: Enable Atlas dashboard upgrade v3
+on:
+  push:
+    paths:
+      - '.github/workflows/enable-upgrade-v3.yml'
+permissions:
+  contents: write
+jobs:
+  enable:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add upgrade loader
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          old='    <script src="future-modules.js?v=8"></script>'
+          new='    <script src="future-modules.js?v=8"></script>\n    <script src="upgrade-v3.js?v=1"></script>'
+          if 'upgrade-v3.js' not in s:
+              s=s.replace(old,new)
+              p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit
+        run: |
+          git config user.name "GeoCode"
+          git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Enable visual and analytics upgrade v3"
+          git push
