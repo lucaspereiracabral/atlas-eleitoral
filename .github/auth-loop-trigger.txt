@@ -1,1 +1,1 @@
-2026-08-16T17:19-03:00 stop auth loop and expose init error
+2026-08-16T17:20-03:00 fix OAuth callback session race
