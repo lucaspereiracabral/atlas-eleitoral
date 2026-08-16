@@ -1,0 +1,134 @@
+name: Fix buffer directly in index
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-buffer-direct-index.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Replace atualizarBuffer directly in index.html
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          marker = '    function atualizarBuffer() {'
+          start = s.find(marker)
+          if start < 0:
+              raise SystemExit('atualizarBuffer not found')
+
+          brace = s.find('{', start)
+          depth = 0
+          end = None
+          in_s = in_d = in_t = False
+          esc = False
+          i = brace
+          while i < len(s):
+              c = s[i]
+              if esc:
+                  esc = False
+                  i += 1
+                  continue
+              if c == '\\':
+                  esc = True
+                  i += 1
+                  continue
+              if not in_d and not in_t and c == "'": in_s = not in_s
+              elif not in_s and not in_t and c == '"': in_d = not in_d
+              elif not in_s and not in_d and c == '`': in_t = not in_t
+              elif not in_s and not in_d and not in_t:
+                  if c == '{': depth += 1
+                  elif c == '}':
+                      depth -= 1
+                      if depth == 0:
+                          end = i + 1
+                          break
+              i += 1
+          if end is None:
+              raise SystemExit('Could not determine function end')
+
+          new_fn = r'''    function atualizarBuffer() {
+        if (!geoSetores || !Array.isArray(geoSetores.features) || !bufferLatLng) {
+            document.getElementById("buffer-resultado").innerText = "0";
+            return;
+        }
+
+        const raioM = Number(document.getElementById("buffer-slider").value || 500);
+        document.getElementById("buffer-raio").innerText = raioM + "m";
+
+        if (bufferCircle) {
+            try { mapIBGE.removeLayer(bufferCircle); } catch (e) {}
+        }
+
+        bufferCircle = L.circle(bufferLatLng, {
+            radius: raioM,
+            color: "#f59e0b",
+            fillColor: "#f59e0b",
+            fillOpacity: 0.22,
+            weight: 2,
+            interactive: false
+        }).addTo(mapIBGE);
+
+        const centro = [Number(bufferLatLng.lng), Number(bufferLatLng.lat)];
+        const circulo = turf.circle(centro, raioM / 1000, {
+            steps: 96,
+            units: "kilometers"
+        });
+
+        let total = 0;
+        let setoresIntersectados = 0;
+        let erros = 0;
+
+        for (const sec of geoSetores.features) {
+            if (!sec || !sec.geometry) continue;
+
+            try {
+                const setorFeature = turf.feature(sec.geometry, sec.properties || {});
+                const intersecao = turf.intersect(setorFeature, circulo);
+                if (!intersecao) continue;
+
+                const popApta = Math.round(calcularPopulacaoApta2026(sec.properties || {}));
+                if (popApta <= 0) continue;
+
+                total += popApta;
+                setoresIntersectados++;
+            } catch (e) {
+                erros++;
+                console.warn("Erro ao testar setor no buffer", e, sec.properties?.cd_setor || sec.properties?.CD_SETOR);
+            }
+        }
+
+        document.getElementById("buffer-resultado").innerText = format(total);
+
+        console.info("BUFFER DIRETO INDEX", {
+            raioM,
+            totalSetores: geoSetores.features.length,
+            setoresIntersectados,
+            total,
+            erros
+        });
+    }'''
+
+          s = s[:start] + new_fn + s[end:]
+          p.write_text(s, encoding='utf-8')
+
+          # Remove any external override: keep file harmless.
+          Path('future-modules.js').write_text(
+              '// Módulos futuros desativados. O cálculo do buffer está apenas no index.html.\n',
+              encoding='utf-8'
+          )
+          PY
+
+      - name: Commit direct repair
+        run: |
+          git config user.name "GeoCode"
+          git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
+          git add index.html future-modules.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Fix population buffer directly in index"
+          git push
