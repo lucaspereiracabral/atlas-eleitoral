@@ -1,0 +1,50 @@
+name: Fix authorized user login lookup
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-authorized-user-login.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch authorization lookup
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          old='''        const { data: acesso, error: acessoError } = await supabaseClient
+            .from("usuarios_autorizados")
+            .select("nome,email,perfil,ativo")
+            .eq("user_id", user.id)
+            .eq("ativo", true)
+            .maybeSingle();'''
+          new='''        const emailAutenticado = String(user?.email || "").trim();
+        const filtros = [`user_id.eq.${user.id}`];
+        if (emailAutenticado) filtros.push(`email.eq.${emailAutenticado}`);
+
+        const { data: acesso, error: acessoError } = await supabaseClient
+            .from("usuarios_autorizados")
+            .select("nome,email,perfil,ativo,user_id")
+            .or(filtros.join(","))
+            .eq("ativo", true)
+            .limit(1)
+            .maybeSingle();'''
+          if old not in s:
+              raise SystemExit('Bloco de autorização não encontrado')
+          s=s.replace(old,new,1)
+          oldmsg='''            setAuthMessage("Sua conta Google foi autenticada, mas não possui autorização para acessar o Atlas.");'''
+          newmsg='''            setAuthMessage(`Conta autenticada sem autorização no Atlas: ${emailAutenticado || "e-mail não identificado"}.`);'''
+          s=s.replace(oldmsg,newmsg,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit
+        run: |
+          git config user.name "GeoCode"
+          git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
+          git add index.html
+          git commit -m "Fix authorized user login lookup" || exit 0
+          git push
