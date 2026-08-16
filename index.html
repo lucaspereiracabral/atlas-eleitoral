@@ -1854,26 +1854,29 @@ body:not(.auth-locked) #auth-gate { display: none; }
 
     async function liberarAtlas(user) {
         const emailAutenticado = String(user?.email || "").trim();
-        const filtros = [`user_id.eq.${user.id}`];
-        if (emailAutenticado) filtros.push(`email.eq.${emailAutenticado}`);
 
-        const { data: acesso, error: acessoError } = await supabaseClient
-            .from("usuarios_autorizados")
-            .select("nome,email,perfil,ativo,user_id")
-            .or(filtros.join(","))
-            .eq("ativo", true)
-            .limit(1)
-            .maybeSingle();
+        const { data: acessos, error: acessoError } = await supabaseClient
+            .rpc("atlas_acesso_atual");
 
-        if (acessoError || !acesso) {
-            console.warn("Acesso recusado para usuário autenticado:", user?.email);
-            await supabaseClient.auth.signOut();
+        const acesso = Array.isArray(acessos) ? acessos[0] : acessos;
+
+        if (acessoError) {
+            console.error("Erro ao validar autorização do Atlas:", acessoError);
+            bloquearAtlas();
+            setAuthMessage("Sua sessão Google foi criada, mas houve falha ao validar a autorização. Tente novamente em alguns segundos.");
+            return;
+        }
+
+        if (!acesso) {
+            console.warn("Usuário autenticado sem autorização ativa:", emailAutenticado);
             bloquearAtlas();
             setAuthMessage(`Conta autenticada sem autorização no Atlas: ${emailAutenticado || "e-mail não identificado"}.`);
             return;
         }
 
         document.body.classList.remove("auth-locked");
+        setAuthMessage("");
+
         const userEmail = document.getElementById("auth-user-email");
         if (userEmail) {
             const nome = acesso.nome || user?.user_metadata?.full_name || user?.email || "Usuário";
@@ -1982,12 +1985,14 @@ body:not(.auth-locked) #auth-gate { display: none; }
         else bloquearAtlas();
     }
 
-    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+    supabaseClient.auth.onAuthStateChange((event, session) => {
         if (event === "SIGNED_OUT") {
             bloquearAtlas();
             return;
         }
-        if (session?.user) await liberarAtlas(session.user);
+        if (session?.user) {
+            setTimeout(() => liberarAtlas(session.user), 0);
+        }
     });
 
     verificarSessaoAtlas();
