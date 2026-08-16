@@ -1,0 +1,85 @@
+name: Fix OAuth double exchange
+on:
+  push:
+    paths:
+      - '.github/oauth-double-exchange-trigger.txt'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch auth flow
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          old = '''        if (acessoError || !acesso) {
+            console.warn("Acesso recusado para usuário autenticado:", user?.email);
+            await supabaseClient.auth.signOut();
+            bloquearAtlas();
+            setAuthMessage("Sua conta Google foi autenticada, mas não possui autorização para acessar o Atlas.");
+            return;
+        }'''
+          new = '''        if (acessoError || !acesso) {
+            console.warn("Falha na validação de acesso:", acessoError || "usuário não autorizado", user?.email);
+            bloquearAtlas();
+            setAuthMessage("Sua conta Google foi autenticada, mas não foi possível validar o acesso ao Atlas.");
+            return;
+        }'''
+          if old not in s:
+              raise SystemExit('Bloco de acesso não encontrado')
+          s = s.replace(old, new, 1)
+
+          start = s.index('    async function verificarSessaoAtlas() {')
+          end = s.index('    verificarSessaoAtlas();', start)
+          end = end + len('    verificarSessaoAtlas();')
+          replacement = '''    let authLiberacaoEmCurso = false;
+
+    async function verificarSessaoAtlas() {
+        const { data: { session }, error } = await supabaseClient.auth.getSession();
+        if (error) {
+            console.error("Erro ao verificar sessão:", error);
+            bloquearAtlas();
+            setAuthMessage("Não foi possível recuperar a sessão do Google.");
+            return;
+        }
+
+        if (session?.user) {
+            if (authLiberacaoEmCurso) return;
+            authLiberacaoEmCurso = true;
+            try {
+                await liberarAtlas(session.user);
+            } finally {
+                authLiberacaoEmCurso = false;
+            }
+        } else {
+            bloquearAtlas();
+        }
+    }
+
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+        if (event === "SIGNED_OUT") {
+            bloquearAtlas();
+            return;
+        }
+
+        if ((event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") && session?.user) {
+            setTimeout(() => verificarSessaoAtlas(), 0);
+        }
+    });
+
+    verificarSessaoAtlas();'''
+          s = s[:start] + replacement + s[end:]
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit
+        run: |
+          git config user.name "GeoCode"
+          git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
+          git add index.html
+          git commit -m "Fix Supabase OAuth session loop" || exit 0
+          git push
