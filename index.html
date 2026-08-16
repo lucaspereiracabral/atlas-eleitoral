@@ -1855,9 +1855,7 @@ body:not(.auth-locked) #auth-gate { display: none; }
     async function liberarAtlas(user) {
         const emailAutenticado = String(user?.email || "").trim();
 
-        const { data: acessos, error: acessoError } = await supabaseClient
-            .rpc("atlas_acesso_atual");
-
+        const { data: acessos, error: acessoError } = await supabaseClient.rpc("atlas_acesso_atual");
         const acesso = Array.isArray(acessos) ? acessos[0] : acessos;
 
         if (acessoError) {
@@ -1876,7 +1874,6 @@ body:not(.auth-locked) #auth-gate { display: none; }
 
         document.body.classList.remove("auth-locked");
         setAuthMessage("");
-
         const userEmail = document.getElementById("auth-user-email");
         if (userEmail) {
             const nome = acesso.nome || user?.user_metadata?.full_name || user?.email || "Usuário";
