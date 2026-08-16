@@ -13,9 +13,9 @@ function show(id,btn){document.querySelectorAll('.tab-content').forEach(x=>x.cla
 function removeMarkedHomeKpi(){document.querySelectorAll('.kpi-card').forEach(card=>{const txt=(card.textContent||'').toLowerCase();if(txt.includes('biometria cadastrada'))card.remove()})}
 function build(){injectStyle();removeMarkedHomeKpi();const nav=document.querySelector('header nav');if(!nav)return;modules.forEach(m=>{if(document.getElementById(m.id))return;const b=document.createElement('button');b.className='nav-btn future-nav';b.type='button';b.textContent=m.label;b.onclick=()=>show(m.id,b);nav.appendChild(b);const sec=document.createElement('section');sec.id=m.id;sec.className='tab-content';sec.innerHTML=`<div class="future-page"><div class="future-hero"><div class="future-badge">${m.icon} Em desenvolvimento</div><h2>${m.title}</h2><p>${m.desc}</p></div><div class="future-grid">${m.items.map((x,i)=>`<div class="future-card"><strong>${String(i+1).padStart(2,'0')} · ${x}</strong><span>Este componente será integrado ao Atlas conforme as bases territoriais forem consolidadas e validadas.</span></div>`).join('')}</div></div>`;document.body.appendChild(sec)})}
 
-// Correção do cálculo da população no buffer do mapa censitário.
-// Usa turf.distance em quilômetros sobre as mesmas amostras dos setores
-// que alimentam o mapa coroplético, preservando a estimativa por proporção.
+// Buffer da população apta a votar em 2026.
+// Calcula a fração da área de cada setor censitário dentro do raio e
+// aplica essa proporção à população apta estimada do próprio setor.
 function instalarCorrecaoBuffer(){
   window.atualizarBuffer=function(){
     if(!geoSetores || !Array.isArray(geoSetores.features) || !bufferLatLng) return;
@@ -26,38 +26,77 @@ function instalarCorrecaoBuffer(){
     const raioLabel=document.getElementById('buffer-raio');
     if(raioLabel) raioLabel.innerText=raioM+'m';
 
-    if(bufferCircle){ try{ mapIBGE.removeLayer(bufferCircle); }catch(e){} }
+    if(bufferCircle){try{mapIBGE.removeLayer(bufferCircle)}catch(e){}}
     bufferCircle=L.circle(bufferLatLng,{radius:raioM,color:'#f59e0b',fillColor:'#f59e0b',fillOpacity:.22,weight:2,interactive:false}).addTo(mapIBGE);
 
-    const centro=turf.point([Number(bufferLatLng.lng),Number(bufferLatLng.lat)]);
+    const centro=[Number(bufferLatLng.lng),Number(bufferLatLng.lat)];
+    const centroPt=turf.point(centro);
+    const bufferGeo=turf.circle(centro,raioKm,{steps:96,units:'kilometers'});
+    const bboxBuffer=turf.bbox(bufferGeo);
+
     let populacaoBuffer=0;
     let setoresComContribuicao=0;
+    let setoresTestados=0;
 
     for(const sec of geoSetores.features){
-      const popApta=Number(calcularPopulacaoApta2026(sec.properties||{})||0);
-      if(popApta<=0) continue;
+      if(!sec?.geometry) continue;
 
-      let amostras=[];
-      try{ amostras=obterAmostrasSetor(sec)||[]; }catch(e){}
+      const props=sec.properties||{};
+      const popApta=Number(props.pop_apta_2026 ?? calcularPopulacaoApta2026(props) ?? 0);
+      if(!(popApta>0)) continue;
 
-      if(!amostras.length){
-        try{
-          const c=turf.centroid(sec).geometry.coordinates;
-          amostras=[{lng:c[0],lat:c[1]}];
-        }catch(e){ continue; }
+      let bboxSetor;
+      try{
+        bboxSetor=turf.bbox(sec);
+        if(bboxSetor[2]<bboxBuffer[0] || bboxSetor[0]>bboxBuffer[2] || bboxSetor[3]<bboxBuffer[1] || bboxSetor[1]>bboxBuffer[3]) continue;
+      }catch(e){continue}
+
+      setoresTestados++;
+      let proporcao=0;
+
+      try{
+        const areaSetor=turf.area(sec);
+        if(areaSetor>0){
+          const inter=turf.intersect(sec,bufferGeo);
+          if(inter){
+            const areaDentro=turf.area(inter);
+            proporcao=Math.max(0,Math.min(1,areaDentro/areaSetor));
+          }
+        }
+      }catch(e){
+        // Algumas geometrias podem falhar no intersect; usa grade interna como fallback.
       }
 
-      let dentro=0;
-      for(const p of amostras){
+      if(!(proporcao>0)){
         try{
-          const ponto=turf.point([Number(p.lng),Number(p.lat)]);
-          const d=turf.distance(centro,ponto,{units:'kilometers'});
-          if(Number.isFinite(d) && d<=raioKm) dentro++;
+          const N=16;
+          let total=0,dentro=0;
+          for(let x=0;x<N;x++){
+            for(let y=0;y<N;y++){
+              const lng=bboxSetor[0]+((x+.5)/N)*(bboxSetor[2]-bboxSetor[0]);
+              const lat=bboxSetor[1]+((y+.5)/N)*(bboxSetor[3]-bboxSetor[1]);
+              const pt=turf.point([lng,lat]);
+              if(!turf.booleanPointInPolygon(pt,sec)) continue;
+              total++;
+              const d=turf.distance(centroPt,pt,{units:'kilometers'});
+              if(Number.isFinite(d) && d<=raioKm) dentro++;
+            }
+          }
+          if(total>0) proporcao=dentro/total;
         }catch(e){}
       }
 
-      if(dentro>0){
-        populacaoBuffer += popApta*(dentro/amostras.length);
+      // Fallback final para setores muito pequenos: centroide dentro do raio.
+      if(!(proporcao>0)){
+        try{
+          const c=turf.centroid(sec);
+          const d=turf.distance(centroPt,c,{units:'kilometers'});
+          if(Number.isFinite(d) && d<=raioKm) proporcao=1;
+        }catch(e){}
+      }
+
+      if(proporcao>0){
+        populacaoBuffer += popApta*proporcao;
         setoresComContribuicao++;
       }
     }
@@ -66,7 +105,7 @@ function instalarCorrecaoBuffer(){
     const out=document.getElementById('buffer-resultado');
     if(out) out.innerText=format(resultado);
 
-    console.info('BUFFER CENSO corrigido:',{raioM,setoresComContribuicao,resultado,totalSetores:geoSetores.features.length});
+    console.info('BUFFER POPULAÇÃO APTA 2026',{centro,raioM,setoresTestados,setoresComContribuicao,resultado});
   };
 }
 
