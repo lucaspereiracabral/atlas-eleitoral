@@ -1,0 +1,97 @@
+name: Force simple buffer intersection
+on:
+  push:
+    paths:
+      - '.github/workflows/force-simple-buffer.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Replace buffer logic with simple sector intersection sum
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          start = s.find('    function atualizarBuffer() {')
+          end = s.find('    /* =========================================================\n       GRÁFICOS', start)
+          if start == -1 or end == -1:
+              raise SystemExit('Could not locate atualizarBuffer block')
+
+          new_fn = r'''    function atualizarBuffer() {
+        if (!geoSetores || !Array.isArray(geoSetores.features) || !bufferLatLng) {
+            const out = document.getElementById("buffer-resultado");
+            if (out) out.innerText = "0";
+            return;
+        }
+
+        const raioM = Number(document.getElementById("buffer-slider").value || 500);
+        document.getElementById("buffer-raio").innerText = raioM + "m";
+
+        if (bufferCircle) mapIBGE.removeLayer(bufferCircle);
+        bufferCircle = L.circle(bufferLatLng, {
+            radius: raioM,
+            color: "#f59e0b",
+            fillColor: "#f59e0b",
+            fillOpacity: 0.22,
+            weight: 2,
+            interactive: false
+        }).addTo(mapIBGE);
+
+        // Regra simples: qualquer setor que intersectar o círculo entra integralmente na soma.
+        const circle = turf.circle(
+            [Number(bufferLatLng.lng), Number(bufferLatLng.lat)],
+            raioM / 1000,
+            { steps: 96, units: 'kilometers' }
+        );
+
+        let total = 0;
+        let setoresIntersectados = 0;
+        const codigos = [];
+
+        geoSetores.features.forEach(sec => {
+            try {
+                if (!sec || !sec.geometry) return;
+
+                const setorFeature = turf.feature(sec.geometry, sec.properties || {});
+                const intersecta = turf.booleanIntersects(setorFeature, circle);
+
+                if (intersecta) {
+                    const pop = Math.round(calcularPopulacaoApta2026(sec.properties || {}));
+                    if (pop > 0) {
+                        total += pop;
+                        setoresIntersectados++;
+                        const codigo = getProp(sec.properties || {}, ["cd_setor", "CD_SETOR"]);
+                        if (codigo) codigos.push(codigo);
+                    }
+                }
+            } catch (e) {
+                console.warn('Erro ao testar interseção do setor:', e, sec);
+            }
+        });
+
+        document.getElementById("buffer-resultado").innerText = format(total);
+
+        console.info('BUFFER SIMPLES - SOMA DE SETORES INTERSECTADOS', {
+            centro: [bufferLatLng.lng, bufferLatLng.lat],
+            raioM,
+            setoresIntersectados,
+            total,
+            codigos
+        });
+    }
+
+'''
+          s = s[:start] + new_fn + s[end:]
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit patched index
+        run: |
+          git config user.name "GeoCode"
+          git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
+          git add index.html
+          git commit -m "Use simple sector intersection sum for population buffer" || exit 0
+          git push
