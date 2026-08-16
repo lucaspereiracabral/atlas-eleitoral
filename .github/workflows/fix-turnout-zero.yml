@@ -1,0 +1,37 @@
+name: Fix turnout CSV loading
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/fix-turnout-zero.yml'
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch turnout loader
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('turnout.js')
+          s=p.read_text(encoding='utf-8')
+          old="rows=parseCSV(await res.text()).filter(r=>String(r[F.municipio]||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toUpperCase()==='ITAJAI');loaded=true;render()"
+          new="rows=parseCSV(await res.text()); console.info('TURNOUT CSV', {linhas: rows.length, cabecalhos: rows[0] ? Object.keys(rows[0]) : []}); loaded=true;render()"
+          if old not in s:
+              raise SystemExit('Trecho esperado nao encontrado em turnout.js')
+          p.write_text(s.replace(old,new),encoding='utf-8')
+
+          p=Path('future-modules.js')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace("turnout.js?v=1","turnout.js?v=2")
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit changes
+        run: |
+          git config user.name "GeoCode"
+          git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
+          git add turnout.js future-modules.js
+          git commit -m "Fix turnout CSV parsing and refresh cache" || exit 0
+          git push
