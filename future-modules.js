@@ -55,20 +55,15 @@
 
     function anelTocaCirculo(ring, lng0, lat0, raioM) {
         if (!Array.isArray(ring) || ring.length < 2) return false;
-
         const pts = ring.map(c => projetar(Number(c[0]), Number(c[1]), lng0, lat0));
-
         for (const [x, y] of pts) {
             if (Math.hypot(x, y) <= raioM) return true;
         }
-
         for (let i = 1; i < pts.length; i++) {
             const [ax, ay] = pts[i - 1];
             const [bx, by] = pts[i];
             if (distanciaPontoSegmento(0, 0, ax, ay, bx, by) <= raioM) return true;
         }
-
-        // Fecha o anel caso o GeoJSON não repita o primeiro ponto no final.
         const [ax, ay] = pts[pts.length - 1];
         const [bx, by] = pts[0];
         return distanciaPontoSegmento(0, 0, ax, ay, bx, by) <= raioM;
@@ -76,46 +71,25 @@
 
     function poligonoInterseccionaCirculo(polygonCoords, lng0, lat0, raioM) {
         if (!Array.isArray(polygonCoords) || !polygonCoords.length) return false;
-
-        // O centro do buffer está dentro do setor.
         if (centroDentroPoligono(lng0, lat0, polygonCoords)) return true;
-
-        // Qualquer borda externa ou interna toca o círculo.
         for (const ring of polygonCoords) {
             if (anelTocaCirculo(ring, lng0, lat0, raioM)) return true;
         }
-
         return false;
     }
 
     function setorInterseccionaCirculo(sec, lng0, lat0, raioM) {
         const g = sec?.geometry;
         if (!g?.coordinates) return false;
-
-        if (g.type === 'Polygon') {
-            return poligonoInterseccionaCirculo(g.coordinates, lng0, lat0, raioM);
-        }
-
+        if (g.type === 'Polygon') return poligonoInterseccionaCirculo(g.coordinates, lng0, lat0, raioM);
         if (g.type === 'MultiPolygon') {
-            return g.coordinates.some(poly =>
-                poligonoInterseccionaCirculo(poly, lng0, lat0, raioM)
-            );
+            return g.coordinates.some(poly => poligonoInterseccionaCirculo(poly, lng0, lat0, raioM));
         }
-
         return false;
     }
 
-    function garantirDiagnostico() {
-        const out = document.getElementById('buffer-resultado');
-        if (!out) return null;
-        let diag = document.getElementById('buffer-diagnostico');
-        if (!diag) {
-            diag = document.createElement('div');
-            diag.id = 'buffer-diagnostico';
-            diag.style.cssText = 'margin-top:7px;font-size:10px;color:#92400e;font-weight:600;line-height:1.35;';
-            out.insertAdjacentElement('afterend', diag);
-        }
-        return diag;
+    function removerDiagnostico() {
+        document.getElementById('buffer-diagnostico')?.remove();
     }
 
     function calcular(force = false) {
@@ -125,17 +99,11 @@
         if (!painel || !out || !slider) return;
         if (getComputedStyle(painel).display === 'none') return;
 
-        const diag = garantirDiagnostico();
+        removerDiagnostico();
 
         try {
-            if (typeof geoSetores === 'undefined' || !geoSetores || !Array.isArray(geoSetores.features)) {
-                if (diag) diag.textContent = `${VERSAO} • GeoJSON de setores indisponível`;
-                return;
-            }
-            if (typeof bufferLatLng === 'undefined' || !bufferLatLng) {
-                if (diag) diag.textContent = `${VERSAO} • centro do buffer indisponível`;
-                return;
-            }
+            if (typeof geoSetores === 'undefined' || !geoSetores || !Array.isArray(geoSetores.features)) return;
+            if (typeof bufferLatLng === 'undefined' || !bufferLatLng) return;
 
             const raioM = Number(slider.value || 500);
             const lng0 = Number(bufferLatLng.lng);
@@ -154,10 +122,8 @@
             for (const sec of geoSetores.features) {
                 if (!setorInterseccionaCirculo(sec, lng0, lat0, raioM)) continue;
                 intersectados++;
-
                 const pop = Math.round(calcularPopulacaoApta2026(sec.properties || {}));
                 if (!(pop > 0)) continue;
-
                 total += pop;
                 comPop++;
                 const codigo = getProp(sec.properties || {}, ['cd_setor', 'CD_SETOR']);
@@ -165,50 +131,34 @@
             }
 
             out.innerText = format(total);
-            if (diag) {
-                diag.textContent = `${VERSAO} • ${intersectados} setores intersectados • ${comPop} com população • ${geoSetores.features.length} analisados`;
-            }
-
             console.info(VERSAO, {
-                centro: [lng0, lat0],
-                raioM,
+                centro: [lng0, lat0], raioM,
                 totalSetores: geoSetores.features.length,
-                intersectados,
-                comPop,
-                total,
-                codigos
+                intersectados, comPop, total, codigos
             });
         } catch (e) {
             console.error(`${VERSAO} erro`, e);
-            if (diag) diag.textContent = `${VERSAO} • ERRO: ${String(e?.message || e)}`;
         }
     }
 
     function iniciar() {
+        removerDiagnostico();
         const slider = document.getElementById('buffer-slider');
         const painel = document.getElementById('buffer-tool');
         const escola = document.getElementById('buffer-escola');
-
         slider?.addEventListener('input', () => setTimeout(() => calcular(true), 20));
         slider?.addEventListener('change', () => setTimeout(() => calcular(true), 20));
-
         if (painel) {
             new MutationObserver(() => setTimeout(() => calcular(true), 30))
                 .observe(painel, { attributes: true, attributeFilter: ['style', 'class'] });
         }
-
         if (escola) {
             new MutationObserver(() => setTimeout(() => calcular(true), 30))
                 .observe(escola, { childList: true, characterData: true, subtree: true });
         }
-
-        // Garantia: enquanto o painel estiver aberto, confere periodicamente.
         setInterval(() => calcular(false), 700);
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', iniciar);
-    } else {
-        iniciar();
-    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
+    else iniciar();
 })();
