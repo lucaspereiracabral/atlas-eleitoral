@@ -1,0 +1,54 @@
+name: Fix login loop via secure GeoJSON RPC
+on:
+  push:
+    paths:
+      - '.github/workflows/run-fix-geojson-rpc-login-loop.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch GeoJSON loader
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          old='''    async function loadGeoJsonPrivado(nome) {
+        const { data, error } = await supabaseClient
+            .from("atlas_geojson_privado")
+            .select("conteudo")
+            .eq("nome", nome)
+            .single();
+
+        if (error || !data?.conteudo) {
+            console.error(`Falha ao carregar ${nome}:`, error);
+            throw new Error(`Não foi possível carregar ${nome}.`);
+        }
+
+        return data.conteudo;
+    }'''
+          new='''    async function loadGeoJsonPrivado(nome) {
+        const { data, error } = await supabaseClient.rpc("atlas_geojson_atual", { p_nome: nome });
+
+        if (error || !data) {
+            console.error(`Falha ao carregar ${nome}:`, error);
+            throw new Error(`Não foi possível carregar ${nome}.`);
+        }
+
+        return data;
+    }'''
+          if old not in s:
+              raise SystemExit('Loader antigo não encontrado')
+          s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit
+        run: |
+          git config user.name "GeoCode"
+          git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
+          git add index.html
+          git commit -m "Use secure RPC for protected GeoJSON loading" || exit 0
+          git push
