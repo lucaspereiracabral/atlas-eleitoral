@@ -1904,6 +1904,10 @@ body:not(.auth-locked) #auth-gate { display: none; }
     }
 
     function bloquearAtlas() {
+        if (new URLSearchParams(window.location.search).has("code")) {
+            console.info("Bloqueio ignorado durante callback OAuth.");
+            return;
+        }
         document.body.classList.add("auth-locked");
         const userEmail = document.getElementById("auth-user-email");
         if (userEmail) userEmail.textContent = "";
