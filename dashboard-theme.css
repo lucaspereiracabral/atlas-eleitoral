@@ -1,0 +1,116 @@
+/* ATLAS DASHBOARD THEME V2 */
+:root{--dash-bg:#f5f7fb;--dash-card:#fff;--dash-line:#e7ecf3;--dash-ink:#0f172a;--dash-muted:#738096;--dash-blue:#2563eb;--dash-teal:#0f9f8f;--dash-amber:#e9a91b;--dash-red:#e5485b;--dash-shadow:0 8px 26px rgba(15,23,42,.06)}
+
+/* HOME — executive dashboard */
+#inicio{background:var(--dash-bg)!important}
+#inicio .container{max-width:1480px!important;padding:26px 30px 42px!important}
+#inicio .hero{background:transparent!important;color:var(--dash-ink)!important;box-shadow:none!important;border:none!important;padding:8px 2px 22px!important;min-height:0!important;margin-bottom:4px!important;display:block!important}
+#inicio .hero::after{display:none!important}
+#inicio .hero-eyebrow{color:#7c8799!important;font-size:10px!important;letter-spacing:1.4px!important;margin-bottom:8px!important}
+#inicio .hero h2{color:var(--dash-ink)!important;font-size:32px!important;line-height:1.08!important;letter-spacing:-1.2px!important;margin-bottom:8px!important;max-width:none!important}
+#inicio .hero p{color:#748196!important;max-width:900px!important;font-size:13px!important;line-height:1.55!important}
+#inicio .hero-actions{position:absolute!important;right:30px;top:96px;margin:0!important;gap:8px!important}
+#inicio .hero-actions button{background:#fff!important;color:#334155!important;border:1px solid var(--dash-line)!important;box-shadow:0 2px 7px rgba(15,23,42,.04)!important;border-radius:9px!important;padding:10px 14px!important}
+#inicio .hero-actions button:first-child{background:var(--dash-blue)!important;color:#fff!important;border-color:var(--dash-blue)!important}
+
+#inicio .kpi-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:14px!important;margin:16px 0 20px!important}
+#inicio .kpi-card{border:1px solid var(--dash-line)!important;border-top:none!important;border-left:none!important;border-radius:14px!important;padding:18px 20px!important;background:#fff!important;box-shadow:var(--dash-shadow)!important;min-height:118px!important;position:relative!important}
+#inicio .kpi-card::before{content:'';position:absolute;left:18px;right:18px;top:0;height:3px;border-radius:0 0 3px 3px;background:#2563eb}
+#inicio .kpi-card.purple::before{background:#8b5cf6}
+#inicio .kpi-card.orange::before{background:#e9a91b}
+#inicio .kpi-title{font-size:9px!important;letter-spacing:.8px!important;color:#7c8799!important;margin-bottom:10px!important}
+#inicio .kpi-value{font-size:30px!important;line-height:1!important;color:var(--dash-ink)!important;letter-spacing:-1px!important}
+#inicio .kpi-sub{font-size:10px!important;color:#94a3b8!important;margin-top:8px!important}
+
+#atlas-home-dashboard{margin:0 0 22px!important}
+#atlas-home-dashboard .atlas-home-shell{background:transparent!important;border:0!important;border-radius:0!important;padding:0!important;box-shadow:none!important}
+#atlas-home-dashboard .atlas-home-top{margin:4px 0 14px!important;align-items:flex-end!important}
+#atlas-home-dashboard .atlas-home-kicker{font-size:10px!important;letter-spacing:1.1px!important;color:#8994a5!important;margin-bottom:5px!important}
+#atlas-home-dashboard .atlas-home-title{font-size:21px!important;letter-spacing:-.5px!important}
+#atlas-home-dashboard .atlas-home-subtitle{font-size:12px!important;color:#8792a3!important;margin-top:5px!important}
+#atlas-home-dashboard .atlas-home-badge{font-size:10px!important;padding:7px 10px!important;border-radius:8px!important;box-shadow:none!important}
+#atlas-home-dashboard .atlas-muni-grid{grid-template-columns:1.35fr repeat(3,1fr)!important;gap:12px!important;margin-top:10px!important}
+#atlas-home-dashboard .atlas-muni-card{min-height:106px!important;padding:16px 18px!important;border-radius:13px!important;border:1px solid var(--dash-line)!important;box-shadow:var(--dash-shadow)!important}
+#atlas-home-dashboard .atlas-muni-card::after{width:58px!important;height:58px!important;right:-18px!important;top:-18px!important}
+#atlas-home-dashboard .atlas-muni-label{font-size:9px!important;margin-bottom:10px!important;color:#7f8a9c!important}
+#atlas-home-dashboard .atlas-muni-value{font-size:25px!important;letter-spacing:-.7px!important}
+#atlas-home-dashboard .atlas-muni-value.name{font-size:18px!important;max-width:280px!important}
+#atlas-home-dashboard .atlas-muni-note{font-size:10px!important;margin-top:7px!important}
+#atlas-home-dashboard .atlas-home-lower{grid-template-columns:1.35fr .65fr!important;gap:12px!important;margin-top:12px!important}
+#atlas-home-dashboard .atlas-panel{border-radius:13px!important;padding:17px 18px!important;border:1px solid var(--dash-line)!important;box-shadow:var(--dash-shadow)!important}
+#atlas-home-dashboard .atlas-panel-title{font-size:13px!important}
+#atlas-home-dashboard .atlas-panel-sub{font-size:10px!important}
+#atlas-home-dashboard .atlas-pop-row{grid-template-columns:105px 1fr 76px!important}
+#atlas-home-dashboard .atlas-pop-track{height:14px!important}
+#atlas-home-dashboard .atlas-pop-name,#atlas-home-dashboard .atlas-pop-number{font-size:10px!important}
+#atlas-home-dashboard .atlas-growth{font-size:10px!important;padding:9px 11px!important;margin-top:12px!important}
+#atlas-home-dashboard .atlas-shortcut{font-size:11px!important;padding:10px 12px!important;border-radius:9px!important;background:#fff!important}
+
+/* ANALYTICS — cards and charts inspired by executive BI dashboards */
+.analytics-page{max-width:1480px!important;padding:24px 30px 44px!important;background:var(--dash-bg)!important}
+.analytics-head{margin-bottom:14px!important;align-items:center!important}
+.analytics-head h2{font-size:24px!important;letter-spacing:-.7px!important;color:var(--dash-ink)!important}
+.analytics-head p{font-size:11px!important;color:#7e8a9d!important;margin-top:4px!important}
+.analytics-filters{background:#fff!important;border:1px solid var(--dash-line)!important;border-radius:12px!important;padding:10px!important;gap:8px!important;margin-bottom:14px!important;box-shadow:0 3px 12px rgba(15,23,42,.035)!important}
+.analytics-filters select{min-height:38px!important;padding:8px 11px!important;border-radius:8px!important;border-color:#e5eaf1!important;font-size:11px!important;min-width:180px!important}
+.analytics-clear{min-height:38px!important;padding:8px 12px!important;font-size:11px!important;border-radius:8px!important}
+.analytics-kpis{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:12px!important;margin-bottom:14px!important}
+.analytics-kpi{position:relative!important;min-height:106px!important;padding:16px 18px!important;border:1px solid var(--dash-line)!important;border-radius:13px!important;box-shadow:var(--dash-shadow)!important;overflow:hidden!important}
+.analytics-kpi::after{content:'';position:absolute;right:16px;top:16px;width:34px;height:24px;border-bottom:2px solid #7dd3fc;border-left:2px solid transparent;transform:skewY(-15deg);opacity:.8}
+.analytics-kpi:nth-child(2)::after{border-bottom-color:#34d399}.analytics-kpi:nth-child(3)::after{border-bottom-color:#fbbf24}.analytics-kpi:nth-child(4)::after{border-bottom-color:#f87171}
+.analytics-kpi span{font-size:9px!important;letter-spacing:.75px!important;color:#7f8a9c!important}
+.analytics-kpi strong{font-size:28px!important;letter-spacing:-.8px!important;margin-top:8px!important;color:var(--dash-ink)!important}
+.analytics-kpi small{font-size:9px!important;margin-top:6px!important;color:#9aa4b3!important}
+.analytics-grid{gap:12px!important}
+.analytics-card{border:1px solid var(--dash-line)!important;border-radius:13px!important;padding:17px 18px 18px!important;box-shadow:var(--dash-shadow)!important;min-height:320px!important;background:#fff!important}
+.analytics-card h3{font-size:13px!important;letter-spacing:-.15px!important;margin-bottom:3px!important}
+.analytics-card p{font-size:10px!important;color:#97a1b0!important;margin-bottom:12px!important}
+.chart-wrap{height:300px!important}
+.analytics-card.wide .chart-wrap{height:390px!important}
+.party-card{padding:18px 20px 22px!important}
+.party-chart-wrap{height:780px!important}
+.analytics-selection{font-size:9px!important;padding:6px 9px!important}
+
+/* Chart.js canvas smoothing / whitespace */
+.analytics-card canvas{max-width:100%!important}
+
+@media(max-width:1050px){
+ #inicio .hero-actions{position:static!important;margin-top:16px!important}
+ #inicio .kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ #atlas-home-dashboard .atlas-muni-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ #atlas-home-dashboard .atlas-home-lower{grid-template-columns:1fr!important}
+}
+@media(max-width:700px){
+ #inicio .container{padding:14px 12px 26px!important}
+ #inicio .hero{padding:10px 2px 14px!important}
+ #inicio .hero h2{font-size:26px!important}
+ #inicio .hero p{font-size:11px!important}
+ #inicio .hero-actions{display:grid!important;grid-template-columns:1fr 1fr!important;margin-top:14px!important}
+ #inicio .hero-actions button{font-size:10px!important;padding:9px!important}
+ #inicio .kpi-grid{grid-template-columns:1fr 1fr!important;gap:9px!important;margin-top:12px!important}
+ #inicio .kpi-card{padding:14px!important;min-height:104px!important}
+ #inicio .kpi-value{font-size:23px!important}
+ #atlas-home-dashboard .atlas-home-top{display:block!important}
+ #atlas-home-dashboard .atlas-home-title{font-size:19px!important}
+ #atlas-home-dashboard .atlas-home-badge{margin-top:9px!important}
+ #atlas-home-dashboard .atlas-muni-grid{grid-template-columns:1fr 1fr!important;gap:9px!important}
+ #atlas-home-dashboard .atlas-muni-card{min-height:98px!important;padding:14px!important}
+ #atlas-home-dashboard .atlas-muni-value{font-size:21px!important}
+ #atlas-home-dashboard .atlas-muni-value.name{font-size:15px!important}
+ #atlas-home-dashboard .atlas-home-lower{grid-template-columns:1fr!important}
+ .analytics-page{padding:12px 10px 26px!important}
+ .analytics-head h2{font-size:20px!important}
+ .analytics-filters{position:static!important;padding:8px!important}
+ .analytics-kpis{grid-template-columns:1fr 1fr!important;gap:8px!important}
+ .analytics-kpi{min-height:96px!important;padding:13px!important}
+ .analytics-kpi strong{font-size:22px!important}
+ .analytics-grid{gap:9px!important}
+ .analytics-card{padding:13px!important;border-radius:11px!important}
+ .chart-wrap{height:280px!important}
+ .analytics-card.wide .chart-wrap{height:640px!important}
+ .party-chart-wrap{height:860px!important}
+}
+@media(max-width:390px){
+ #inicio .kpi-grid,#atlas-home-dashboard .atlas-muni-grid,.analytics-kpis{grid-template-columns:1fr!important}
+ #inicio .hero-actions{grid-template-columns:1fr!important}
+}
