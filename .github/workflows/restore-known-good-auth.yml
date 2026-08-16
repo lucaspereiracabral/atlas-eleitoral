@@ -1,0 +1,48 @@
+name: Restore known good authentication
+on:
+  push:
+    paths:
+      - '.github/restore-auth-trigger.txt'
+permissions:
+  contents: write
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore auth block from known good commit
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+
+          good_ref = '6d92576c098bb55ff3f3d9688478a0a2909a3eeb'
+          current_path = Path('index.html')
+          current = current_path.read_text(encoding='utf-8')
+          good = subprocess.check_output(['git','show',f'{good_ref}:index.html'], text=True)
+
+          marker = '    /* =========================================================\n       SUPABASE AUTH\n    ========================================================== */'
+          end_marker = '\n</script>\n\n    <script src="analytics.js?v=1"></script>'
+
+          cs = current.find(marker)
+          gs = good.find(marker)
+          ce = current.find(end_marker, cs)
+          ge = good.find(end_marker, gs)
+
+          if min(cs, gs, ce, ge) < 0:
+              raise SystemExit(f'Marcadores não encontrados: cs={cs}, gs={gs}, ce={ce}, ge={ge}')
+
+          good_auth = good[gs:ge]
+          restored = current[:cs] + good_auth + current[ce:]
+          current_path.write_text(restored, encoding='utf-8')
+          print('Bloco de autenticação restaurado do commit', good_ref)
+          PY
+      - name: Commit restored auth
+        run: |
+          git config user.name "GeoCode"
+          git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Restore last known working authentication block"
+          git push
