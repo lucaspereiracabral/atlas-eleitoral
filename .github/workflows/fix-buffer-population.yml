@@ -1,0 +1,128 @@
+name: Fix population buffer calculation
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-buffer-population.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch buffer population calculation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          start = s.find('    function atualizarBuffer() {')
+          end = s.find('    /* =========================================================\n       GRÁFICOS', start)
+          if start == -1 or end == -1:
+              raise SystemExit('Could not locate atualizarBuffer function block')
+
+          new_fn = r'''    function atualizarBuffer() {
+        if (!geoSetores || !Array.isArray(geoSetores.features) || !bufferLatLng) {
+            const out = document.getElementById("buffer-resultado");
+            if (out) out.innerText = "...";
+            return;
+        }
+
+        const raioM = Number(document.getElementById("buffer-slider").value || 500);
+        document.getElementById("buffer-raio").innerText = raioM + "m";
+
+        if (bufferCircle) mapIBGE.removeLayer(bufferCircle);
+        bufferCircle = L.circle(bufferLatLng, {
+            radius: raioM,
+            color: "#f59e0b",
+            fillColor: "#f59e0b",
+            fillOpacity: 0.22,
+            weight: 2,
+            interactive: false
+        }).addTo(mapIBGE);
+
+        const centro = turf.point([bufferLatLng.lng, bufferLatLng.lat]);
+        let populacaoBuffer = 0;
+        let setoresComContribuicao = 0;
+        let totalAmostrasTestadas = 0;
+        let totalPontosDentro = 0;
+
+        geoSetores.features.forEach(sec => {
+            try {
+                const popApta = calcularPopulacaoApta2026(sec.properties || {});
+                if (!(popApta > 0) || !sec.geometry) return;
+
+                let amostras = obterAmostrasSetor(sec) || [];
+
+                // Fallback adicional para setores estreitos ou geometrias problemáticas.
+                if (!amostras.length) {
+                    try {
+                        const c = turf.centroid(sec);
+                        const [lng, lat] = c.geometry.coordinates;
+                        amostras = [{ lng, lat }];
+                    } catch (e) {
+                        return;
+                    }
+                }
+
+                let dentro = 0;
+                amostras.forEach(p => {
+                    try {
+                        totalAmostrasTestadas++;
+                        const ponto = turf.point([Number(p.lng), Number(p.lat)]);
+                        const distanciaM = turf.distance(centro, ponto, { units: 'kilometers' }) * 1000;
+                        if (Number.isFinite(distanciaM) && distanciaM <= raioM) {
+                            dentro++;
+                            totalPontosDentro++;
+                        }
+                    } catch (e) {}
+                });
+
+                if (dentro > 0) {
+                    populacaoBuffer += popApta * (dentro / amostras.length);
+                    setoresComContribuicao++;
+                }
+            } catch (e) {
+                console.warn('Setor ignorado no cálculo do buffer:', e);
+            }
+        });
+
+        // Fallback: caso a amostragem não encontre nada, usa centroides dos setores.
+        if (populacaoBuffer <= 0) {
+            geoSetores.features.forEach(sec => {
+                try {
+                    const popApta = calcularPopulacaoApta2026(sec.properties || {});
+                    if (!(popApta > 0) || !sec.geometry) return;
+                    const c = turf.centroid(sec);
+                    const distanciaM = turf.distance(centro, c, { units: 'kilometers' }) * 1000;
+                    if (Number.isFinite(distanciaM) && distanciaM <= raioM) {
+                        populacaoBuffer += popApta;
+                        setoresComContribuicao++;
+                    }
+                } catch (e) {}
+            });
+        }
+
+        const resultado = Math.max(0, Math.round(populacaoBuffer));
+        document.getElementById("buffer-resultado").innerText = format(resultado);
+
+        console.info('BUFFER POPULAÇÃO APTA 2026', {
+            raioM,
+            setoresComContribuicao,
+            totalAmostrasTestadas,
+            totalPontosDentro,
+            resultado
+        });
+    }
+
+'''
+          s = s[:start] + new_fn + s[end:]
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name "GeoCode"
+          git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
+          git add index.html
+          git commit -m "Fix population estimate inside map buffer" || exit 0
+          git push
