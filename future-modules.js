@@ -56,9 +56,7 @@
     function anelTocaCirculo(ring, lng0, lat0, raioM) {
         if (!Array.isArray(ring) || ring.length < 2) return false;
         const pts = ring.map(c => projetar(Number(c[0]), Number(c[1]), lng0, lat0));
-        for (const [x, y] of pts) {
-            if (Math.hypot(x, y) <= raioM) return true;
-        }
+        for (const [x, y] of pts) if (Math.hypot(x, y) <= raioM) return true;
         for (let i = 1; i < pts.length; i++) {
             const [ax, ay] = pts[i - 1];
             const [bx, by] = pts[i];
@@ -72,9 +70,7 @@
     function poligonoInterseccionaCirculo(polygonCoords, lng0, lat0, raioM) {
         if (!Array.isArray(polygonCoords) || !polygonCoords.length) return false;
         if (centroDentroPoligono(lng0, lat0, polygonCoords)) return true;
-        for (const ring of polygonCoords) {
-            if (anelTocaCirculo(ring, lng0, lat0, raioM)) return true;
-        }
+        for (const ring of polygonCoords) if (anelTocaCirculo(ring, lng0, lat0, raioM)) return true;
         return false;
     }
 
@@ -82,9 +78,7 @@
         const g = sec?.geometry;
         if (!g?.coordinates) return false;
         if (g.type === 'Polygon') return poligonoInterseccionaCirculo(g.coordinates, lng0, lat0, raioM);
-        if (g.type === 'MultiPolygon') {
-            return g.coordinates.some(poly => poligonoInterseccionaCirculo(poly, lng0, lat0, raioM));
-        }
+        if (g.type === 'MultiPolygon') return g.coordinates.some(poly => poligonoInterseccionaCirculo(poly, lng0, lat0, raioM));
         return false;
     }
 
@@ -98,44 +92,24 @@
         const slider = document.getElementById('buffer-slider');
         if (!painel || !out || !slider) return;
         if (getComputedStyle(painel).display === 'none') return;
-
         removerDiagnostico();
-
         try {
             if (typeof geoSetores === 'undefined' || !geoSetores || !Array.isArray(geoSetores.features)) return;
             if (typeof bufferLatLng === 'undefined' || !bufferLatLng) return;
-
             const raioM = Number(slider.value || 500);
             const lng0 = Number(bufferLatLng.lng);
             const lat0 = Number(bufferLatLng.lat);
             const chaveCentro = `${lng0.toFixed(7)},${lat0.toFixed(7)}`;
-
             if (!force && chaveCentro === ultimoCentro && raioM === ultimoRaio) return;
             ultimoCentro = chaveCentro;
             ultimoRaio = raioM;
-
             let total = 0;
-            let intersectados = 0;
-            let comPop = 0;
-            const codigos = [];
-
             for (const sec of geoSetores.features) {
                 if (!setorInterseccionaCirculo(sec, lng0, lat0, raioM)) continue;
-                intersectados++;
                 const pop = Math.round(calcularPopulacaoApta2026(sec.properties || {}));
-                if (!(pop > 0)) continue;
-                total += pop;
-                comPop++;
-                const codigo = getProp(sec.properties || {}, ['cd_setor', 'CD_SETOR']);
-                if (codigo) codigos.push(String(codigo));
+                if (pop > 0) total += pop;
             }
-
             out.innerText = format(total);
-            console.info(VERSAO, {
-                centro: [lng0, lat0], raioM,
-                totalSetores: geoSetores.features.length,
-                intersectados, comPop, total, codigos
-            });
         } catch (e) {
             console.error(`${VERSAO} erro`, e);
         }
@@ -148,14 +122,8 @@
         const escola = document.getElementById('buffer-escola');
         slider?.addEventListener('input', () => setTimeout(() => calcular(true), 20));
         slider?.addEventListener('change', () => setTimeout(() => calcular(true), 20));
-        if (painel) {
-            new MutationObserver(() => setTimeout(() => calcular(true), 30))
-                .observe(painel, { attributes: true, attributeFilter: ['style', 'class'] });
-        }
-        if (escola) {
-            new MutationObserver(() => setTimeout(() => calcular(true), 30))
-                .observe(escola, { childList: true, characterData: true, subtree: true });
-        }
+        if (painel) new MutationObserver(() => setTimeout(() => calcular(true), 30)).observe(painel, { attributes: true, attributeFilter: ['style', 'class'] });
+        if (escola) new MutationObserver(() => setTimeout(() => calcular(true), 30)).observe(escola, { childList: true, characterData: true, subtree: true });
         setInterval(() => calcular(false), 700);
     }
 
@@ -163,12 +131,21 @@
     else iniciar();
 })();
 
-// Dashboard moderno da página inicial.
+// Tema executivo da home e dos painéis analíticos.
 (() => {
-    if (document.getElementById('atlas-home-dashboard-loader')) return;
-    const script = document.createElement('script');
-    script.id = 'atlas-home-dashboard-loader';
-    script.src = 'home-dashboard.js?v=1';
-    script.defer = true;
-    document.head.appendChild(script);
+    if (!document.getElementById('atlas-dashboard-theme')) {
+        const link = document.createElement('link');
+        link.id = 'atlas-dashboard-theme';
+        link.rel = 'stylesheet';
+        link.href = 'dashboard-theme.css?v=2';
+        document.head.appendChild(link);
+    }
+
+    if (!document.getElementById('atlas-home-dashboard-loader')) {
+        const script = document.createElement('script');
+        script.id = 'atlas-home-dashboard-loader';
+        script.src = 'home-dashboard.js?v=2';
+        script.defer = true;
+        document.head.appendChild(script);
+    }
 })();
