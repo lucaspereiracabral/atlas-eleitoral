@@ -1854,8 +1854,6 @@ body:not(.auth-locked) #auth-gate { display: none; }
 
     let authLiberacaoEmCurso = false;
 
-    let authLiberacaoEmCurso = false;
-
     async function liberarAtlas(user) {
         if (!user || authLiberacaoEmCurso) return;
         authLiberacaoEmCurso = true;
