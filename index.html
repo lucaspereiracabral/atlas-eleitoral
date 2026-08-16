@@ -1852,62 +1852,51 @@ body:not(.auth-locked) #auth-gate { display: none; }
         btn.textContent = ativo ? "Entrando..." : "Entrar";
     }
 
-    let authLiberacaoEmCurso = false;
-
     async function liberarAtlas(user) {
-        if (!user || authLiberacaoEmCurso) return;
-        authLiberacaoEmCurso = true;
+        const { data: acesso, error: acessoError } = await supabaseClient
+            .from("usuarios_autorizados")
+            .select("nome,email,perfil,ativo")
+            .eq("user_id", user.id)
+            .eq("ativo", true)
+            .maybeSingle();
 
-        try {
-            document.body.classList.remove("auth-locked");
-            setAuthMessage("");
-
-            const userEmail = document.getElementById("auth-user-email");
-            if (userEmail) {
-                const nome = user?.user_metadata?.full_name || user?.email || "Usuário";
-                userEmail.textContent = nome;
-                userEmail.title = user?.email || "";
-            }
-
-            if (!atlasInicializado) {
-                atlasInicializado = true;
-                try {
-                    await init();
-                } catch (e) {
-                    atlasInicializado = false;
-                    console.error("Erro ao carregar dados protegidos do Atlas:", e);
-                    document.body.classList.remove("auth-locked");
-                    setAuthMessage("");
-                    const loader = document.getElementById("loader");
-                    if (loader) loader.style.display = "none";
-                    const inicio = document.getElementById("inicio");
-                    if (inicio && !document.getElementById("atlas-load-error")) {
-                        const aviso = document.createElement("div");
-                        aviso.id = "atlas-load-error";
-                        aviso.style.cssText = "margin:16px auto;max-width:900px;padding:14px 16px;border:1px solid #fecaca;background:#fff7f7;color:#991b1b;border-radius:10px;font:600 12px/1.5 Arial,sans-serif";
-                        aviso.textContent = "Sessão autenticada. Houve erro ao carregar um ou mais dados protegidos. Abra o console do navegador para ver o detalhe técnico.";
-                        inicio.prepend(aviso);
-                    }
-                    document.body.classList.remove("auth-locked");
-                    setAuthMessage("");
-                    return;
-                }
-            }
-
-            setTimeout(() => {
-                try { mapTRE.invalidateSize(); } catch (e) {}
-                try { mapIBGE.invalidateSize(); } catch (e) {}
-            }, 250);
-        } finally {
-            authLiberacaoEmCurso = false;
+        if (acessoError || !acesso) {
+            console.warn("Acesso recusado para usuário autenticado:", user?.email);
+            await supabaseClient.auth.signOut();
+            bloquearAtlas();
+            setAuthMessage("Sua conta Google foi autenticada, mas não possui autorização para acessar o Atlas.");
+            return;
         }
+
+        document.body.classList.remove("auth-locked");
+        const userEmail = document.getElementById("auth-user-email");
+        if (userEmail) {
+            const nome = acesso.nome || user?.user_metadata?.full_name || user?.email || "Usuário";
+            const perfil = (acesso.perfil || "visualizacao").toUpperCase();
+            userEmail.textContent = `${nome} • ${perfil}`;
+            userEmail.title = acesso.email || user?.email || "";
+        }
+
+        if (!atlasInicializado) {
+            atlasInicializado = true;
+            try {
+                await init();
+            } catch (e) {
+                atlasInicializado = false;
+                console.error("Erro ao inicializar o Atlas:", e);
+                document.body.classList.add("auth-locked");
+                setAuthMessage("Não foi possível carregar os dados protegidos do Atlas.");
+                return;
+            }
+        }
+
+        setTimeout(() => {
+            try { mapTRE.invalidateSize(); } catch (e) {}
+            try { mapIBGE.invalidateSize(); } catch (e) {}
+        }, 250);
     }
 
     function bloquearAtlas() {
-        if (new URLSearchParams(window.location.search).has("code")) {
-            console.info("Bloqueio ignorado durante callback OAuth.");
-            return;
-        }
         document.body.classList.add("auth-locked");
         const userEmail = document.getElementById("auth-user-email");
         if (userEmail) userEmail.textContent = "";
@@ -1960,38 +1949,40 @@ body:not(.auth-locked) #auth-gate { display: none; }
 
     async function verificarSessaoAtlas() {
         try {
-            const { data: { session }, error } = await supabaseClient.auth.getSession();
-            if (error) {
-                console.error("Erro ao verificar sessão:", error);
-                bloquearAtlas();
-                setAuthMessage("Não foi possível validar a sessão.");
-                return;
-            }
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get("code");
 
-            if (session?.user) {
-                const cleanUrl = window.location.origin + window.location.pathname;
-                if (window.location.search || window.location.hash) {
+            if (code) {
+                const { error: exchangeError } = await supabaseClient.auth.exchangeCodeForSession(code);
+
+                if (exchangeError) {
+                    console.error("Erro ao trocar code OAuth por sessão:", exchangeError);
+                    setAuthMessage("Falha ao concluir o login com Google.");
+                } else {
+                    const cleanUrl = window.location.origin + window.location.pathname;
                     window.history.replaceState({}, document.title, cleanUrl);
                 }
-                await liberarAtlas(session.user);
-            } else {
-                bloquearAtlas();
             }
         } catch (e) {
-            console.error("Erro ao verificar sessão do Atlas:", e);
-            bloquearAtlas();
+            console.error("Erro ao processar retorno OAuth:", e);
         }
+
+        const { data: { session }, error } = await supabaseClient.auth.getSession();
+        if (error) {
+            console.error("Erro ao verificar sessão:", error);
+            bloquearAtlas();
+            return;
+        }
+        if (session?.user) await liberarAtlas(session.user);
+        else bloquearAtlas();
     }
 
-    supabaseClient.auth.onAuthStateChange((event, session) => {
-        console.info("Supabase auth event:", event);
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
         if (event === "SIGNED_OUT") {
             bloquearAtlas();
             return;
         }
-        if ((event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") && session?.user) {
-            setTimeout(() => liberarAtlas(session.user), 0);
-        }
+        if (session?.user) await liberarAtlas(session.user);
     });
 
     verificarSessaoAtlas();
