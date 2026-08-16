@@ -1,0 +1,19 @@
+name: Apply auth loop fix
+on:
+  push:
+    paths:
+      - '.github/scripts/apply_auth_loop_fix.py'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python .github/scripts/apply_auth_loop_fix.py
+      - run: |
+          git config user.name "GeoCode"
+          git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
+          git add index.html
+          git commit -m "Fix OAuth PKCE login loop" || exit 0
+          git push
