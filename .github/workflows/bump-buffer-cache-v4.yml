@@ -1,0 +1,21 @@
+name: Force buffer fix cache v4
+on:
+  push:
+    paths:
+      - '.github/workflows/bump-buffer-cache-v4.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bump future modules cache version
+        run: sed -i 's/future-modules.js?v=3/future-modules.js?v=4/g' index.html
+      - name: Commit cache bump
+        run: |
+          git config user.name "GeoCode"
+          git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
+          git add index.html
+          git commit -m "Load Turf intersect buffer fix" || exit 0
+          git push
