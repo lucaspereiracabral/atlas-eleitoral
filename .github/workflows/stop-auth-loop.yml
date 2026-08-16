@@ -1,0 +1,54 @@
+name: Stop auth loop on data load error
+on:
+  push:
+    paths:
+      - '.github/auth-loop-trigger.txt'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Keep authenticated session open when init fails
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old = '''                } catch (e) {
+                    atlasInicializado = false;
+                    console.error("Erro ao carregar dados protegidos do Atlas:", e);
+                    document.body.classList.add("auth-locked");
+                    setAuthMessage("Conta autenticada, mas sem acesso aos dados protegidos do Atlas.");
+                    return;
+                }'''
+          new = '''                } catch (e) {
+                    atlasInicializado = false;
+                    console.error("Erro ao carregar dados protegidos do Atlas:", e);
+                    document.body.classList.remove("auth-locked");
+                    setAuthMessage("");
+                    const loader = document.getElementById("loader");
+                    if (loader) loader.style.display = "none";
+                    const inicio = document.getElementById("inicio");
+                    if (inicio && !document.getElementById("atlas-load-error")) {
+                        const aviso = document.createElement("div");
+                        aviso.id = "atlas-load-error";
+                        aviso.style.cssText = "margin:16px auto;max-width:900px;padding:14px 16px;border:1px solid #fecaca;background:#fff7f7;color:#991b1b;border-radius:10px;font:600 12px/1.5 Arial,sans-serif";
+                        aviso.textContent = "Sessão autenticada. Houve erro ao carregar um ou mais dados protegidos. Abra o console do navegador para ver o detalhe técnico.";
+                        inicio.prepend(aviso);
+                    }
+                    return;
+                }'''
+          if old not in s:
+              raise SystemExit('Bloco de erro de init não encontrado')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit
+        run: |
+          git config user.name "GeoCode"
+          git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Stop auth loop when protected data load fails"
+          git push
