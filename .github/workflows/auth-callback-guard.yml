@@ -1,0 +1,22 @@
+name: Auth callback guard
+on:
+  push:
+    paths:
+      - '.github/auth-callback-guard-trigger.txt'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Guard auth callback from relock
+        run: |
+          python -c "from pathlib import Path; p=Path('index.html'); s=p.read_text(encoding='utf-8'); old='    function bloquearAtlas() {\\n        document.body.classList.add(\\\"auth-locked\\\");'; new='    function bloquearAtlas() {\\n        if (new URLSearchParams(window.location.search).has(\\\"code\\\")) {\\n            console.info(\\\"Bloqueio ignorado durante callback OAuth.\\\");\\n            return;\\n        }\\n        document.body.classList.add(\\\"auth-locked\\\");'; assert old in s, 'bloquearAtlas não encontrado'; p.write_text(s.replace(old,new,1),encoding='utf-8')"
+      - name: Commit
+        run: |
+          git config user.name "GeoCode"
+          git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Guard OAuth callback against login relock"
+          git push
