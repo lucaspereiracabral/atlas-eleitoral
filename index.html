@@ -1853,18 +1853,23 @@ body:not(.auth-locked) #auth-gate { display: none; }
     }
 
     async function liberarAtlas(user) {
+        const emailAutenticado = String(user?.email || "").trim();
+        const filtros = [`user_id.eq.${user.id}`];
+        if (emailAutenticado) filtros.push(`email.eq.${emailAutenticado}`);
+
         const { data: acesso, error: acessoError } = await supabaseClient
             .from("usuarios_autorizados")
-            .select("nome,email,perfil,ativo")
-            .eq("user_id", user.id)
+            .select("nome,email,perfil,ativo,user_id")
+            .or(filtros.join(","))
             .eq("ativo", true)
+            .limit(1)
             .maybeSingle();
 
         if (acessoError || !acesso) {
             console.warn("Acesso recusado para usuário autenticado:", user?.email);
             await supabaseClient.auth.signOut();
             bloquearAtlas();
-            setAuthMessage("Sua conta Google foi autenticada, mas não possui autorização para acessar o Atlas.");
+            setAuthMessage(`Conta autenticada sem autorização no Atlas: ${emailAutenticado || "e-mail não identificado"}.`);
             return;
         }
 
