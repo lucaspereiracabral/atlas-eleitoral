@@ -1,142 +1,209 @@
 // Módulos futuros desativados temporariamente.
 // O Atlas mantém apenas os quatro módulos principais.
 //
-// Correção isolada do buffer da População Eleitoral.
-// A função original do index.html continua desenhando o círculo.
-// Este script observa o resultado e recalcula a soma APÓS o handler original.
+// BUFFER V5 — cálculo independente de Turf para interseção.
+// Regra: qualquer setor que tocar/intersectar o círculo entra integralmente na soma.
 
 (() => {
-    let recalculando = false;
+    const VERSAO = 'BUFFER V5';
+    let ultimoCentro = '';
+    let ultimoRaio = null;
 
-    function setorInterseccionaCirculo(sec, circulo, centro, raioM) {
-        if (!sec || !sec.geometry) return false;
+    function projetar(lng, lat, lng0, lat0) {
+        const rad = Math.PI / 180;
+        const x = (lng - lng0) * 111320 * Math.cos(lat0 * rad);
+        const y = (lat - lat0) * 110540;
+        return [x, y];
+    }
 
-        const setor = turf.feature(sec.geometry, sec.properties || {});
+    function distanciaPontoSegmento(px, py, ax, ay, bx, by) {
+        const abx = bx - ax;
+        const aby = by - ay;
+        const apx = px - ax;
+        const apy = py - ay;
+        const ab2 = abx * abx + aby * aby;
+        if (ab2 === 0) return Math.hypot(px - ax, py - ay);
+        let t = (apx * abx + apy * aby) / ab2;
+        t = Math.max(0, Math.min(1, t));
+        const qx = ax + t * abx;
+        const qy = ay + t * aby;
+        return Math.hypot(px - qx, py - qy);
+    }
 
-        // 1) Interseção geométrica direta.
-        try {
-            if (turf.intersect(setor, circulo)) return true;
-        } catch (e) {}
+    function pontoDentroAnel(lng, lat, ring) {
+        let dentro = false;
+        for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+            const xi = Number(ring[i][0]);
+            const yi = Number(ring[i][1]);
+            const xj = Number(ring[j][0]);
+            const yj = Number(ring[j][1]);
+            const cruza = ((yi > lat) !== (yj > lat)) &&
+                (lng < (xj - xi) * (lat - yi) / ((yj - yi) || 1e-15) + xi);
+            if (cruza) dentro = !dentro;
+        }
+        return dentro;
+    }
 
-        // 2) Centro do círculo dentro do setor.
-        try {
-            if (turf.booleanPointInPolygon(turf.point(centro), setor)) return true;
-        } catch (e) {}
+    function centroDentroPoligono(lng, lat, polygonCoords) {
+        if (!polygonCoords?.length) return false;
+        if (!pontoDentroAnel(lng, lat, polygonCoords[0])) return false;
+        for (let h = 1; h < polygonCoords.length; h++) {
+            if (pontoDentroAnel(lng, lat, polygonCoords[h])) return false;
+        }
+        return true;
+    }
 
-        // 3) Algum vértice do setor dentro do raio.
-        try {
-            const coords = [];
-            const coletar = arr => {
-                if (!Array.isArray(arr)) return;
-                if (arr.length >= 2 && typeof arr[0] === 'number' && typeof arr[1] === 'number') {
-                    coords.push(arr);
-                    return;
-                }
-                arr.forEach(coletar);
-            };
-            coletar(sec.geometry.coordinates);
+    function anelTocaCirculo(ring, lng0, lat0, raioM) {
+        if (!Array.isArray(ring) || ring.length < 2) return false;
 
-            for (const c of coords) {
-                const d = turf.distance(turf.point(centro), turf.point(c), { units: 'kilometers' }) * 1000;
-                if (Number.isFinite(d) && d <= raioM) return true;
-            }
-        } catch (e) {}
+        const pts = ring.map(c => projetar(Number(c[0]), Number(c[1]), lng0, lat0));
 
-        // 4) Algum ponto da borda do círculo dentro do setor.
-        // Cobre o caso em que o círculo corta o setor sem conter seus vértices.
-        try {
-            const ring = circulo.geometry?.coordinates?.[0] || [];
-            for (let i = 0; i < ring.length; i += 4) {
-                if (turf.booleanPointInPolygon(turf.point(ring[i]), setor)) return true;
-            }
-        } catch (e) {}
+        for (const [x, y] of pts) {
+            if (Math.hypot(x, y) <= raioM) return true;
+        }
+
+        for (let i = 1; i < pts.length; i++) {
+            const [ax, ay] = pts[i - 1];
+            const [bx, by] = pts[i];
+            if (distanciaPontoSegmento(0, 0, ax, ay, bx, by) <= raioM) return true;
+        }
+
+        // Fecha o anel caso o GeoJSON não repita o primeiro ponto no final.
+        const [ax, ay] = pts[pts.length - 1];
+        const [bx, by] = pts[0];
+        return distanciaPontoSegmento(0, 0, ax, ay, bx, by) <= raioM;
+    }
+
+    function poligonoInterseccionaCirculo(polygonCoords, lng0, lat0, raioM) {
+        if (!Array.isArray(polygonCoords) || !polygonCoords.length) return false;
+
+        // O centro do buffer está dentro do setor.
+        if (centroDentroPoligono(lng0, lat0, polygonCoords)) return true;
+
+        // Qualquer borda externa ou interna toca o círculo.
+        for (const ring of polygonCoords) {
+            if (anelTocaCirculo(ring, lng0, lat0, raioM)) return true;
+        }
 
         return false;
     }
 
-    function recalcularBufferPopulacao() {
-        if (recalculando) return;
+    function setorInterseccionaCirculo(sec, lng0, lat0, raioM) {
+        const g = sec?.geometry;
+        if (!g?.coordinates) return false;
 
+        if (g.type === 'Polygon') {
+            return poligonoInterseccionaCirculo(g.coordinates, lng0, lat0, raioM);
+        }
+
+        if (g.type === 'MultiPolygon') {
+            return g.coordinates.some(poly =>
+                poligonoInterseccionaCirculo(poly, lng0, lat0, raioM)
+            );
+        }
+
+        return false;
+    }
+
+    function garantirDiagnostico() {
+        const out = document.getElementById('buffer-resultado');
+        if (!out) return null;
+        let diag = document.getElementById('buffer-diagnostico');
+        if (!diag) {
+            diag = document.createElement('div');
+            diag.id = 'buffer-diagnostico';
+            diag.style.cssText = 'margin-top:7px;font-size:10px;color:#92400e;font-weight:600;line-height:1.35;';
+            out.insertAdjacentElement('afterend', diag);
+        }
+        return diag;
+    }
+
+    function calcular(force = false) {
         const painel = document.getElementById('buffer-tool');
         const out = document.getElementById('buffer-resultado');
         const slider = document.getElementById('buffer-slider');
-
         if (!painel || !out || !slider) return;
         if (getComputedStyle(painel).display === 'none') return;
 
-        try {
-            if (!geoSetores || !Array.isArray(geoSetores.features) || !bufferLatLng) return;
+        const diag = garantirDiagnostico();
 
-            recalculando = true;
+        try {
+            if (typeof geoSetores === 'undefined' || !geoSetores || !Array.isArray(geoSetores.features)) {
+                if (diag) diag.textContent = `${VERSAO} • GeoJSON de setores indisponível`;
+                return;
+            }
+            if (typeof bufferLatLng === 'undefined' || !bufferLatLng) {
+                if (diag) diag.textContent = `${VERSAO} • centro do buffer indisponível`;
+                return;
+            }
 
             const raioM = Number(slider.value || 500);
-            const centro = [Number(bufferLatLng.lng), Number(bufferLatLng.lat)];
-            const circulo = turf.circle(centro, raioM / 1000, {
-                steps: 128,
-                units: 'kilometers'
-            });
+            const lng0 = Number(bufferLatLng.lng);
+            const lat0 = Number(bufferLatLng.lat);
+            const chaveCentro = `${lng0.toFixed(7)},${lat0.toFixed(7)}`;
+
+            if (!force && chaveCentro === ultimoCentro && raioM === ultimoRaio) return;
+            ultimoCentro = chaveCentro;
+            ultimoRaio = raioM;
 
             let total = 0;
-            let setoresIntersectados = 0;
+            let intersectados = 0;
+            let comPop = 0;
             const codigos = [];
 
             for (const sec of geoSetores.features) {
-                if (!setorInterseccionaCirculo(sec, circulo, centro, raioM)) continue;
+                if (!setorInterseccionaCirculo(sec, lng0, lat0, raioM)) continue;
+                intersectados++;
 
                 const pop = Math.round(calcularPopulacaoApta2026(sec.properties || {}));
                 if (!(pop > 0)) continue;
 
                 total += pop;
-                setoresIntersectados++;
-
-                try {
-                    const codigo = getProp(sec.properties || {}, ['cd_setor', 'CD_SETOR']);
-                    if (codigo) codigos.push(String(codigo));
-                } catch (e) {}
+                comPop++;
+                const codigo = getProp(sec.properties || {}, ['cd_setor', 'CD_SETOR']);
+                if (codigo) codigos.push(String(codigo));
             }
 
             out.innerText = format(total);
+            if (diag) {
+                diag.textContent = `${VERSAO} • ${intersectados} setores intersectados • ${comPop} com população • ${geoSetores.features.length} analisados`;
+            }
 
-            console.info('BUFFER RECALCULADO APÓS HANDLER ORIGINAL', {
+            console.info(VERSAO, {
+                centro: [lng0, lat0],
                 raioM,
                 totalSetores: geoSetores.features.length,
-                setoresIntersectados,
+                intersectados,
+                comPop,
                 total,
                 codigos
             });
         } catch (e) {
-            console.error('Erro no recálculo independente do buffer:', e);
-        } finally {
-            recalculando = false;
+            console.error(`${VERSAO} erro`, e);
+            if (diag) diag.textContent = `${VERSAO} • ERRO: ${String(e?.message || e)}`;
         }
-    }
-
-    function agendarRecalculo() {
-        // O handler original escreve o valor primeiro. Recalculamos logo depois.
-        setTimeout(recalcularBufferPopulacao, 40);
     }
 
     function iniciar() {
         const slider = document.getElementById('buffer-slider');
-        const out = document.getElementById('buffer-resultado');
         const painel = document.getElementById('buffer-tool');
+        const escola = document.getElementById('buffer-escola');
 
-        if (slider) {
-            slider.addEventListener('input', agendarRecalculo);
-            slider.addEventListener('change', agendarRecalculo);
-        }
-
-        if (out) {
-            const obsResultado = new MutationObserver(() => {
-                if (!recalculando) agendarRecalculo();
-            });
-            obsResultado.observe(out, { childList: true, characterData: true, subtree: true });
-        }
+        slider?.addEventListener('input', () => setTimeout(() => calcular(true), 20));
+        slider?.addEventListener('change', () => setTimeout(() => calcular(true), 20));
 
         if (painel) {
-            const obsPainel = new MutationObserver(agendarRecalculo);
-            obsPainel.observe(painel, { attributes: true, attributeFilter: ['style', 'class'] });
+            new MutationObserver(() => setTimeout(() => calcular(true), 30))
+                .observe(painel, { attributes: true, attributeFilter: ['style', 'class'] });
         }
+
+        if (escola) {
+            new MutationObserver(() => setTimeout(() => calcular(true), 30))
+                .observe(escola, { childList: true, characterData: true, subtree: true });
+        }
+
+        // Garantia: enquanto o painel estiver aberto, confere periodicamente.
+        setInterval(() => calcular(false), 700);
     }
 
     if (document.readyState === 'loading') {
