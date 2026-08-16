@@ -1,0 +1,28 @@
+name: Fix turnout v3 heatmap syntax
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-turnout-v3-syntax.yml'
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('turnout-v3.js')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace("const al=max?.12+.78*v.r/max:.12;","const al=max ? (.12 + .78*v.r/max) : .12;")
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit
+        run: |
+          git config user.name "GeoCode"
+          git config user.email "92799924+lucaspereiracabral@users.noreply.github.com"
+          git add turnout-v3.js
+          git diff --cached --quiet || git commit -m "Fix turnout v3 heatmap syntax"
+          git push
