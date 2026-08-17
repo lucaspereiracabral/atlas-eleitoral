@@ -14,7 +14,9 @@ new_init = '''            } catch (e) {\n                atlasInicializado = fal
 if old_init in s:
     s = s.replace(old_init, new_init, 1)
 
-# Cache-bust da camada que restaura o CSS-base e recalcula os canvases dos gráficos.
+# Força o navegador a buscar as versões novas dos módulos analíticos.
+s = s.replace('analytics.js?v=1', 'analytics.js?v=2')
+s = s.replace('future-modules.js?v=8', 'future-modules.js?v=9')
 s = s.replace('upgrade-v3.js?v=2', 'upgrade-v3.js?v=3')
 
 p.write_text(s, encoding='utf-8')
