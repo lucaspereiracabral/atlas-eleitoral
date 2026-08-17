@@ -19,6 +19,16 @@ s = s.replace('analytics.js?v=1', 'analytics.js?v=2')
 s = s.replace('future-modules.js?v=8', 'future-modules.js?v=9')
 s = s.replace('future-modules.js?v=9', 'future-modules.js?v=10')
 s = s.replace('future-modules.js?v=20', 'future-modules.js?v=21')
+s = s.replace('future-modules.js?v=21', 'future-modules.js?v=22')
 s = s.replace('upgrade-v3.js?v=2', 'upgrade-v3.js?v=3')
+
+# Carrega a camada visual diretamente no index para não depender do future-modules.
+landing_tag = '    <script src="landing-polish.js?v=2"></script>\n'
+if 'landing-polish.js' not in s:
+    anchor = '    <script src="upgrade-v3.js?v=3"></script>\n'
+    if anchor in s:
+        s = s.replace(anchor, anchor + landing_tag, 1)
+    else:
+        s = s.replace('</body>', landing_tag + '</body>', 1)
 
 p.write_text(s, encoding='utf-8')
