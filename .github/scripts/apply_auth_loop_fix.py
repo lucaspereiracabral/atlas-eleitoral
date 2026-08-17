@@ -17,6 +17,7 @@ if old_init in s:
 # Força o navegador a buscar as versões novas dos módulos analíticos.
 s = s.replace('analytics.js?v=1', 'analytics.js?v=2')
 s = s.replace('future-modules.js?v=8', 'future-modules.js?v=9')
+s = s.replace('future-modules.js?v=9', 'future-modules.js?v=10')
 s = s.replace('upgrade-v3.js?v=2', 'upgrade-v3.js?v=3')
 
 p.write_text(s, encoding='utf-8')
