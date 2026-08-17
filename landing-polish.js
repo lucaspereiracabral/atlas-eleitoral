@@ -1,4 +1,4 @@
-// Landing polish v2 — visual-only layer; preserves maps, auth, buffer and analytics.
+// Landing polish v3 — visual layer + safe neighborhood population repair.
 (()=>{
 'use strict';
 const STYLE_ID='atlas-landing-polish-style';
@@ -100,7 +100,79 @@ function addIcons(){
  });
 }
 
+// Recalcula a população apta por bairro usando primeiro a geometria oficial
+// municipal. Isso corrige bairros que apareciam com 0 porque o NM_BAIRRO do
+// Censo não coincidia com a nomenclatura/limite da camada municipal.
+function repairBairroPopulation(){
+ try{
+   if(window.__atlasBairroPopulationFixed)return true;
+   if(typeof geoSetores==='undefined'||!geoSetores?.features?.length)return false;
+   if(typeof geoBairros==='undefined'||!geoBairros?.features?.length)return false;
+   if(typeof calcularPopulacaoApta2026!=='function'||typeof distribuirSetorEntreBairros!=='function')return false;
+   if(typeof reconstruirIndicePopulacaoBairros!=='function'||typeof obterPopulacaoBairro!=='function')return false;
+
+   const novo={};
+   geoBairros.features.forEach(b=>{
+     const nome=typeof getProp==='function'?getProp(b.properties||{},['nome_1','nome','bairro','NOME_1','NOME','BAIRRO','nome_bairro']):null;
+     if(nome)novo[nome]=0;
+   });
+
+   let espacial=0,fallbackNome=0,outros=0;
+   geoSetores.features.forEach(setor=>{
+     const props=setor.properties||{};
+     const pop=Number(calcularPopulacaoApta2026(props)||0);
+     if(pop<=0)return;
+
+     const distribuicao=distribuirSetorEntreBairros(setor,pop)||[];
+     const validas=distribuicao.filter(p=>p&&p.bairro&&p.bairro!=='Outros'&&Number(p.populacao||0)>0);
+
+     if(validas.length){
+       validas.forEach(p=>{novo[p.bairro]=(novo[p.bairro]||0)+Number(p.populacao||0)});
+       espacial++;
+       return;
+     }
+
+     const nomeIBGE=typeof getProp==='function'?getProp(props,['nm_bairro','NM_BAIRRO']):null;
+     const bairro=typeof resolverNomeBairroIBGE==='function'?resolverNomeBairroIBGE(nomeIBGE):null;
+     if(bairro){novo[bairro]=(novo[bairro]||0)+pop;fallbackNome++;return;}
+     novo.Outros=(novo.Outros||0)+pop;outros++;
+   });
+
+   popPorBairro=novo;
+   reconstruirIndicePopulacaoBairros();
+
+   const inconsistencias=[];
+   if(typeof elPorBairro!=='undefined'){
+     Object.entries(elPorBairro).forEach(([bairro,eleitores])=>{
+       if(bairro&&bairro!=='Outros'&&Number(eleitores||0)>0&&obterPopulacaoBairro(bairro)<=0){
+         inconsistencias.push({bairro,eleitoresTRE:Math.round(Number(eleitores||0)),populacaoApta2026:0});
+       }
+     });
+   }
+
+   console.group('CORREÇÃO POPULAÇÃO APTA 2026 POR BAIRRO');
+   console.log('Setores associados espacialmente:',espacial);
+   console.log('Fallback por NM_BAIRRO:',fallbackNome);
+   console.log('Setores em Outros:',outros);
+   if(inconsistencias.length){console.warn('Bairros ainda zerados:',inconsistencias.length);console.table(inconsistencias)}
+   else console.info('Validação concluída: nenhum bairro com eleitorado TRE ficou zerado.');
+   console.groupEnd();
+
+   if(typeof filtrarTRE==='function')filtrarTRE();
+   window.__atlasBairroPopulationFixed=true;
+   return true;
+ }catch(e){console.error('Falha ao reparar população por bairro:',e);return false;}
+}
+
+function startBairroPopulationRepair(){
+ let tentativas=0;
+ const timer=setInterval(()=>{
+   tentativas++;
+   if(repairBairroPopulation()||tentativas>=40)clearInterval(timer);
+ },500);
+}
+
 function applyAll(){injectStyles();removeHeaderExtras();removeZoneFilter();removePopulationIntro();removeHomeAptaCard();buildInstitutional();addIcons()}
-function init(){applyAll();let timer;const obs=new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(applyAll,50)});obs.observe(document.body,{childList:true,subtree:true});setTimeout(applyAll,300);setTimeout(applyAll,1200);}
+function init(){applyAll();startBairroPopulationRepair();let timer;const obs=new MutationObserver(()=>{clearTimeout(timer);timer=setTimeout(applyAll,50)});obs.observe(document.body,{childList:true,subtree:true});setTimeout(applyAll,300);setTimeout(applyAll,1200);}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
