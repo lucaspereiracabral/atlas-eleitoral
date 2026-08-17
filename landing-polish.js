@@ -1,3 +1,4 @@
+// Landing polish v2 — visual-only layer; preserves maps, auth, buffer and analytics.
 (()=>{
 'use strict';
 const STYLE_ID='atlas-landing-polish-style';
@@ -80,7 +81,6 @@ function buildInstitutional(){
    </div>
  </div>`;
  if(grid)grid.insertAdjacentElement('afterend',section);else container.appendChild(section);
- // Remove painel institucional antigo se existir, evitando duplicidade.
  const old=document.getElementById('atlas-home-dashboard'); if(old)old.remove();
 }
 
