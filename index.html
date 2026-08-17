@@ -1950,8 +1950,6 @@ body:not(.auth-locked) #auth-gate { display: none; }
 
     let authLiberacaoEmCurso = false;
 
-    let authLiberacaoEmCurso = false;
-
     async function verificarSessaoAtlas() {
         const { data: { session }, error } = await supabaseClient.auth.getSession();
         if (error) {
