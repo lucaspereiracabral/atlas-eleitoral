@@ -329,7 +329,7 @@ body:not(.auth-locked) #auth-gate { display: none; }
         <div class="kpi-grid">
             <div class="kpi-card">
                 <div class="kpi-title">Total de Eleitores (TRE)</div>
-                <div class="kpi-value">182.124</div>
+                <div class="kpi-value" id="kpi-eleitores-home">...</div>
                 <div class="kpi-sub">aptos a votar</div>
             </div>
             <div class="kpi-card purple">
@@ -339,13 +339,13 @@ body:not(.auth-locked) #auth-gate { display: none; }
             </div>
             <div class="kpi-card">
                 <div class="kpi-title">Locais de Votação</div>
-                <div class="kpi-value">83</div>
+                <div class="kpi-value" id="kpi-locais-home">...</div>
                 <div class="kpi-sub">escolas e instituições</div>
             </div>
             <div class="kpi-card orange">
                 <div class="kpi-title">Biometria Cadastrada</div>
-                <div class="kpi-value">94,6%</div>
-                <div class="kpi-sub">172.242 eleitores</div>
+                <div class="kpi-value" id="kpi-biometria-home">...</div>
+                <div class="kpi-sub" id="kpi-biometria-sub-home">dados protegidos</div>
             </div>
         </div>
     </div>
@@ -1819,9 +1819,7 @@ body:not(.auth-locked) #auth-gate { display: none; }
         );
 
         // DEMOGRÁFICOS
-        new Chart(document.getElementById("chartGenero"), { type: "doughnut", data: { labels: ["Feminino", "Masculino"], datasets: [{ data: [96639, 85485], backgroundColor: ["#0ea5e9", "#1e293b"], borderWidth:0 }] }, options: { responsive:true, maintainAspectRatio:false, cutout:"65%", plugins:{ legend:{display:true, position:'bottom'}, datalabels:{color:'#fff', font:{size:12, weight:'bold'}, formatter:v=>format(v)} } } });
-        new Chart(document.getElementById("chartIdade"), { type: "bar", data: { labels: ["16-20", "21-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80+"], datasets: [{ data: [8722, 30778, 40169, 40011, 28136, 21443, 10716, 2103], backgroundColor: "#2563eb", borderRadius:4 }] }, options: cfg });
-        new Chart(document.getElementById("chartInstrucao"), { type: "bar", data: { labels: ["Ens. Médio Comp.", "Superior Comp.", "Ens. Médio Incomp.", "Ens. Fund. Incomp.", "Superior Incomp.", "Ens. Fund. Comp.", "Lê e Escreve", "Analfabeto"], datasets: [{ data: [57135, 33157, 26285, 25565, 21082, 14651, 2915, 1334], backgroundColor: "#0ea5e9", borderRadius:4 }] }, options: { ...cfg, indexAxis: 'y', plugins: { legend:{display:false}, datalabels:{anchor:'end', align:'right'} }, scales:{x:{display:false}, y:{grid:{display:false}}} } });
+        // Gráficos demográficos legados removidos: dados carregados apenas após autenticação pelas abas analíticas protegidas.
     }
 
     // Inicialização controlada pela autenticação Supabase
@@ -1852,6 +1850,30 @@ body:not(.auth-locked) #auth-gate { display: none; }
         btn.textContent = ativo ? "Entrando..." : "Entrar";
     }
 
+
+    async function carregarResumoProtegido() {
+        const { data, error } = await supabaseClient
+            .from("atlas_resumo_privado")
+            .select("total_eleitores,locais_votacao,biometria_total,biometria_percentual")
+            .eq("id", 1)
+            .single();
+
+        if (error || !data) {
+            console.error("Falha ao carregar resumo protegido:", error);
+            throw new Error("Não foi possível carregar o resumo protegido do Atlas.");
+        }
+
+        const elEleitores = document.getElementById("kpi-eleitores-home");
+        const elLocais = document.getElementById("kpi-locais-home");
+        const elBio = document.getElementById("kpi-biometria-home");
+        const elBioSub = document.getElementById("kpi-biometria-sub-home");
+
+        if (elEleitores) elEleitores.textContent = format(data.total_eleitores);
+        if (elLocais) elLocais.textContent = format(data.locais_votacao);
+        if (elBio) elBio.textContent = Number(data.biometria_percentual || 0).toLocaleString("pt-BR", {minimumFractionDigits:1, maximumFractionDigits:1}) + "%";
+        if (elBioSub) elBioSub.textContent = format(data.biometria_total) + " eleitores";
+    }
+
     async function liberarAtlas(user) {
         const { data: acesso, error: acessoError } = await supabaseClient
             .from("usuarios_autorizados")
@@ -1875,6 +1897,8 @@ body:not(.auth-locked) #auth-gate { display: none; }
             userEmail.textContent = `${nome} • ${perfil}`;
             userEmail.title = acesso.email || user?.email || "";
         }
+
+        await carregarResumoProtegido();
 
         if (!atlasInicializado) {
             atlasInicializado = true;
