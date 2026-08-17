@@ -167,4 +167,12 @@
         script.defer = true;
         document.body.appendChild(script);
     }
+
+    if (!document.getElementById('atlas-ui-fixes-loader')) {
+        const script = document.createElement('script');
+        script.id = 'atlas-ui-fixes-loader';
+        script.src = 'ui-fixes.js?v=1';
+        script.defer = true;
+        document.body.appendChild(script);
+    }
 })();
