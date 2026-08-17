@@ -48,6 +48,154 @@ new_init = '''            } catch (e) {\n                atlasInicializado = fal
 if old_init in s:
     s = s.replace(old_init, new_init, 1)
 
+# ==============================================================
+# POPULAÇÃO APTA 2026 POR BAIRRO
+# ==============================================================
+# O problema dos bairros zerados vinha da prioridade dada ao NM_BAIRRO do IBGE.
+# Alguns setores têm denominação diferente da malha municipal e acabavam sendo
+# somados em outro bairro. A regra passa a ser espacial-first: cada setor é
+# distribuído pela geometria oficial dos bairros; NM_BAIRRO é apenas fallback.
+start_marker = '    function agregarPopulacaoAptaPorBairro() {'
+end_marker = '    function prepararIndiceBairros() {'
+start = s.find(start_marker)
+end = s.find(end_marker, start) if start != -1 else -1
+
+new_aggregation = r'''    function agregarPopulacaoAptaPorBairro() {
+
+        popPorBairro = {};
+
+        // Inicializa todos os bairros oficiais para que a lista sempre
+        // use exatamente os mesmos nomes da camada municipal.
+        if(geoBairros && Array.isArray(geoBairros.features)) {
+            geoBairros.features.forEach(b => {
+                const nome = getProp(
+                    b.properties || {},
+                    ["nome_1", "nome", "bairro", "NOME_1", "NOME", "BAIRRO", "nome_bairro"]
+                );
+                if(nome) popPorBairro[nome] = 0;
+            });
+        }
+
+        if(!geoSetores || !Array.isArray(geoSetores.features)) {
+            reconstruirIndicePopulacaoBairros();
+            return;
+        }
+
+        let usadosEspacialmente = 0;
+        let usadosPorNomeIBGE = 0;
+        let enviadosOutros = 0;
+
+        geoSetores.features.forEach(setor => {
+            const props = setor.properties || {};
+            const popApta = calcularPopulacaoApta2026(props);
+            if(popApta <= 0) return;
+
+            // REGRA PRINCIPAL: distribuição espacial na malha oficial.
+            // A função usa amostras internas ao setor e preserva 100% da
+            // população do setor entre os bairros que realmente o interceptam.
+            let distribuicao = distribuirSetorEntreBairros(setor, popApta);
+
+            // Se a análise espacial não conseguiu encontrar bairro algum,
+            // tenta o NM_BAIRRO do Censo apenas como fallback.
+            const partesValidas = (distribuicao || []).filter(parte =>
+                parte && parte.bairro && parte.bairro !== "Outros" && Number(parte.populacao || 0) > 0
+            );
+
+            if(partesValidas.length) {
+                partesValidas.forEach(parte => {
+                    popPorBairro[parte.bairro] =
+                        (popPorBairro[parte.bairro] || 0) + Number(parte.populacao || 0);
+                });
+                usadosEspacialmente++;
+                return;
+            }
+
+            const nomeIBGE = getProp(props, ["nm_bairro", "NM_BAIRRO"]);
+            const bairroMunicipal = resolverNomeBairroIBGE(nomeIBGE);
+
+            if(bairroMunicipal) {
+                popPorBairro[bairroMunicipal] =
+                    (popPorBairro[bairroMunicipal] || 0) + popApta;
+                usadosPorNomeIBGE++;
+                return;
+            }
+
+            popPorBairro["Outros"] =
+                (popPorBairro["Outros"] || 0) + popApta;
+            enviadosOutros++;
+        });
+
+        reconstruirIndicePopulacaoBairros();
+
+        console.group("POPULAÇÃO APTA 2026 POR BAIRRO — ASSOCIAÇÃO ESPACIAL");
+        console.log("Setores associados espacialmente:", usadosEspacialmente);
+        console.log("Setores associados por NM_BAIRRO (fallback):", usadosPorNomeIBGE);
+        console.log("Setores enviados para Outros:", enviadosOutros);
+        console.table(
+            Object.entries(popPorBairro)
+                .filter(([bairro]) => bairro !== "Outros")
+                .map(([bairro, populacao]) => ({
+                    bairro,
+                    populacaoApta2026: Math.round(populacao || 0)
+                }))
+                .sort((a,b) => b.populacaoApta2026 - a.populacaoApta2026)
+        );
+        console.groupEnd();
+    }
+
+'''
+
+if start != -1 and end != -1:
+    s = s[:start] + new_aggregation + s[end:]
+
+# Diagnóstico automático: bairros que têm eleitorado TRE, mas continuam com
+# população censitária zerada após a associação espacial.
+diagnostic_fn = r'''
+    function diagnosticarBairrosSemPopulacao() {
+        const inconsistencias = Object.entries(elPorBairro)
+            .filter(([bairro, eleitores]) =>
+                bairro && bairro !== "Outros" &&
+                Number(eleitores || 0) > 0 &&
+                obterPopulacaoBairro(bairro) <= 0
+            )
+            .map(([bairro, eleitores]) => ({
+                bairro,
+                eleitoresTRE: Math.round(Number(eleitores || 0)),
+                populacaoApta2026: 0
+            }))
+            .sort((a,b) => b.eleitoresTRE - a.eleitoresTRE);
+
+        if(inconsistencias.length) {
+            console.warn(
+                "Bairros com eleitores TRE e população apta 2026 ainda zerada:",
+                inconsistencias.length
+            );
+            console.table(inconsistencias);
+        } else {
+            console.info("Validação bairro × população: nenhum bairro com eleitorado TRE ficou zerado.");
+        }
+    }
+
+'''
+
+if 'function diagnosticarBairrosSemPopulacao()' not in s:
+    anchor = '    function resetarTRE() {'
+    if anchor in s:
+        s = s.replace(anchor, diagnostic_fn + anchor, 1)
+
+# Executa a validação depois que os locais TRE já foram agregados por bairro,
+# pois somente nesse ponto elPorBairro contém os totais eleitorais.
+call_anchor = '''        // Camada base de Bairros no Mapa TRE\n        if(geoBairros) {'''
+call_replacement = '''        diagnosticarBairrosSemPopulacao();\n\n        // Camada base de Bairros no Mapa TRE\n        if(geoBairros) {'''
+if call_anchor in s and '        diagnosticarBairrosSemPopulacao();\n\n        // Camada base de Bairros no Mapa TRE' not in s:
+    s = s.replace(call_anchor, call_replacement, 1)
+
+# Atualiza comentário do processamento para refletir a regra espacial-first.
+s = s.replace(
+    '// Agrega a população apta 2026 por bairro usando\n            // prioritariamente NM_BAIRRO do próprio GeoJSON censitário.',
+    '// Agrega a população apta 2026 por bairro pela geometria oficial municipal.\n            // NM_BAIRRO do Censo é utilizado apenas como fallback.'
+)
+
 # Força o navegador a buscar as versões novas dos módulos analíticos/visuais.
 s = s.replace('analytics.js?v=1', 'analytics.js?v=2')
 s = s.replace('future-modules.js?v=8', 'future-modules.js?v=9')
