@@ -166,4 +166,12 @@
         script.defer = true;
         document.body.appendChild(script);
     }
+
+    if (!document.getElementById('atlas-landing-polish-loader')) {
+        const script = document.createElement('script');
+        script.id = 'atlas-landing-polish-loader';
+        script.src = 'landing-polish.js?v=1';
+        script.defer = true;
+        document.body.appendChild(script);
+    }
 })();
