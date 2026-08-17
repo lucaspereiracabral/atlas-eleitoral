@@ -644,14 +644,14 @@ body:not(.auth-locked) #auth-gate { display: none; }
 
         popPorBairro = {};
 
-        // Inicializa todos os bairros municipais com zero.
+        // Inicializa todos os bairros oficiais para que a lista sempre
+        // use exatamente os mesmos nomes da camada municipal.
         if(geoBairros && Array.isArray(geoBairros.features)) {
             geoBairros.features.forEach(b => {
                 const nome = getProp(
                     b.properties || {},
                     ["nome_1", "nome", "bairro", "NOME_1", "NOME", "BAIRRO", "nome_bairro"]
                 );
-
                 if(nome) popPorBairro[nome] = 0;
             });
         }
@@ -661,116 +661,65 @@ body:not(.auth-locked) #auth-gate { display: none; }
             return;
         }
 
+        let usadosEspacialmente = 0;
         let usadosPorNomeIBGE = 0;
-        let usadosPorAmostragem = 0;
         let enviadosOutros = 0;
 
         geoSetores.features.forEach(setor => {
-
             const props = setor.properties || {};
             const popApta = calcularPopulacaoApta2026(props);
-
             if(popApta <= 0) return;
 
-            /*
-             * PRIMEIRA TENTATIVA:
-             * usa diretamente NM_BAIRRO da base do Censo.
-             */
-            const nomeIBGE = getProp(
-                props,
-                ["nm_bairro", "NM_BAIRRO"]
+            // REGRA PRINCIPAL: distribuição espacial na malha oficial.
+            // A função usa amostras internas ao setor e preserva 100% da
+            // população do setor entre os bairros que realmente o interceptam.
+            let distribuicao = distribuirSetorEntreBairros(setor, popApta);
+
+            // Se a análise espacial não conseguiu encontrar bairro algum,
+            // tenta o NM_BAIRRO do Censo apenas como fallback.
+            const partesValidas = (distribuicao || []).filter(parte =>
+                parte && parte.bairro && parte.bairro !== "Outros" && Number(parte.populacao || 0) > 0
             );
 
-            const bairroMunicipal =
-                resolverNomeBairroIBGE(nomeIBGE);
-
-            if(bairroMunicipal) {
-
-                popPorBairro[bairroMunicipal] =
-                    (popPorBairro[bairroMunicipal] || 0) +
-                    popApta;
-
-                usadosPorNomeIBGE++;
-
+            if(partesValidas.length) {
+                partesValidas.forEach(parte => {
+                    popPorBairro[parte.bairro] =
+                        (popPorBairro[parte.bairro] || 0) + Number(parte.populacao || 0);
+                });
+                usadosEspacialmente++;
                 return;
             }
 
-            /*
-             * FALLBACK ESPACIAL:
-             * distribui o setor entre bairros quando não houver
-             * correspondência válida no NM_BAIRRO.
-             */
-            const distribuicao =
-                distribuirSetorEntreBairros(
-                    setor,
-                    popApta
-                );
+            const nomeIBGE = getProp(props, ["nm_bairro", "NM_BAIRRO"]);
+            const bairroMunicipal = resolverNomeBairroIBGE(nomeIBGE);
 
-            if(
-                distribuicao &&
-                distribuicao.length
-            ) {
-
-                distribuicao.forEach(parte => {
-
-                    const nome =
-                        parte.bairro || "Outros";
-
-                    popPorBairro[nome] =
-                        (popPorBairro[nome] || 0) +
-                        Number(parte.populacao || 0);
-
-                    if(nome === "Outros") {
-                        enviadosOutros++;
-                    }
-                });
-
-                usadosPorAmostragem++;
-
-            } else {
-
-                popPorBairro["Outros"] =
-                    (popPorBairro["Outros"] || 0) +
-                    popApta;
-
-                enviadosOutros++;
+            if(bairroMunicipal) {
+                popPorBairro[bairroMunicipal] =
+                    (popPorBairro[bairroMunicipal] || 0) + popApta;
+                usadosPorNomeIBGE++;
+                return;
             }
+
+            popPorBairro["Outros"] =
+                (popPorBairro["Outros"] || 0) + popApta;
+            enviadosOutros++;
         });
 
         reconstruirIndicePopulacaoBairros();
 
-        console.group("POPULAÇÃO APTA 2026 POR BAIRRO");
-
-        console.log(
-            "Setores associados diretamente por NM_BAIRRO:",
-            usadosPorNomeIBGE
-        );
-
-        console.log(
-            "Setores associados por análise espacial:",
-            usadosPorAmostragem
-        );
-
-        console.log(
-            "Setores/partes em Outros:",
-            enviadosOutros
-        );
-
+        console.group("POPULAÇÃO APTA 2026 POR BAIRRO — ASSOCIAÇÃO ESPACIAL");
+        console.log("Setores associados espacialmente:", usadosEspacialmente);
+        console.log("Setores associados por NM_BAIRRO (fallback):", usadosPorNomeIBGE);
+        console.log("Setores enviados para Outros:", enviadosOutros);
         console.table(
             Object.entries(popPorBairro)
                 .filter(([bairro]) => bairro !== "Outros")
                 .map(([bairro, populacao]) => ({
                     bairro,
-                    populacaoApta2026:
-                        Math.round(populacao || 0)
+                    populacaoApta2026: Math.round(populacao || 0)
                 }))
-                .sort(
-                    (a,b) =>
-                        b.populacaoApta2026 -
-                        a.populacaoApta2026
-                )
+                .sort((a,b) => b.populacaoApta2026 - a.populacaoApta2026)
         );
-
         console.groupEnd();
     }
 
@@ -1177,8 +1126,8 @@ body:not(.auth-locked) #auth-gate { display: none; }
             // Como parte da faixa 15-19 é estimada, arredondamos o resultado.
             totalMoradoresIBGE = Math.round(totalMoradoresIBGE);
 
-            // Agrega a população apta 2026 por bairro usando
-            // prioritariamente NM_BAIRRO do próprio GeoJSON censitário.
+            // Agrega a população apta 2026 por bairro pela geometria oficial municipal.
+            // NM_BAIRRO do Censo é utilizado apenas como fallback.
             agregarPopulacaoAptaPorBairro();
 
             const kpiPop = document.getElementById("kpi-pop-home");
@@ -1356,6 +1305,8 @@ body:not(.auth-locked) #auth-gate { display: none; }
             });
         }
 
+        diagnosticarBairrosSemPopulacao();
+
         // Camada base de Bairros no Mapa TRE
         if(geoBairros) {
             camadaBairrosTRE = L.geoJSON(geoBairros, { style: { color: "#334155", weight: 1, fillOpacity: 0 }, interactive: false }).addTo(mapTRE);
@@ -1413,6 +1364,32 @@ body:not(.auth-locked) #auth-gate { display: none; }
             `;
         });
         document.getElementById("lista-tre").innerHTML = htmlArr.join('') || "<div style='padding:20px;text-align:center;font-size:12px;color:gray;'>Nenhum resultado.</div>";
+    }
+
+
+    function diagnosticarBairrosSemPopulacao() {
+        const inconsistencias = Object.entries(elPorBairro)
+            .filter(([bairro, eleitores]) =>
+                bairro && bairro !== "Outros" &&
+                Number(eleitores || 0) > 0 &&
+                obterPopulacaoBairro(bairro) <= 0
+            )
+            .map(([bairro, eleitores]) => ({
+                bairro,
+                eleitoresTRE: Math.round(Number(eleitores || 0)),
+                populacaoApta2026: 0
+            }))
+            .sort((a,b) => b.eleitoresTRE - a.eleitoresTRE);
+
+        if(inconsistencias.length) {
+            console.warn(
+                "Bairros com eleitores TRE e população apta 2026 ainda zerada:",
+                inconsistencias.length
+            );
+            console.table(inconsistencias);
+        } else {
+            console.info("Validação bairro × população: nenhum bairro com eleitorado TRE ficou zerado.");
+        }
     }
 
     function resetarTRE() {
