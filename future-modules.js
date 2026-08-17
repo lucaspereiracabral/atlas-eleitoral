@@ -149,18 +149,12 @@
         document.head.appendChild(script);
     }
 
-    if (!document.getElementById('atlas-turnout-loader')) {
-        const script = document.createElement('script');
-        script.id = 'atlas-turnout-loader';
-        script.src = 'turnout.js?v=2';
-        script.defer = true;
-        document.head.appendChild(script);
-    }
+    // Comparecimento e Abstenção permanece desativado.
 
     if (!document.getElementById('atlas-evolution-loader')) {
         const script = document.createElement('script');
         script.id = 'atlas-evolution-loader';
-        script.src = 'evolution.js?v=1';
+        script.src = 'evolution.js?v=2';
         script.defer = true;
         document.head.appendChild(script);
     }
