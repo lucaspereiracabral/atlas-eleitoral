@@ -14,4 +14,7 @@ new_init = '''            } catch (e) {\n                atlasInicializado = fal
 if old_init in s:
     s = s.replace(old_init, new_init, 1)
 
+# Cache-bust da camada que restaura o CSS-base e recalcula os canvases dos gráficos.
+s = s.replace('upgrade-v3.js?v=2', 'upgrade-v3.js?v=3')
+
 p.write_text(s, encoding='utf-8')
