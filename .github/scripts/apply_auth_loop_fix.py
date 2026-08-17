@@ -19,6 +19,25 @@ new_access = '''        if (acessoError || !acesso) {
 if old_access in s:
     s = s.replace(old_access, new_access, 1)
 
+old_init = '''            } catch (e) {
+                atlasInicializado = false;
+                console.error("Erro ao inicializar o Atlas:", e);
+                document.body.classList.add("auth-locked");
+                setAuthMessage("Não foi possível carregar os dados protegidos do Atlas.");
+                return;
+            }'''
+new_init = '''            } catch (e) {
+                atlasInicializado = false;
+                console.error("Erro ao inicializar o Atlas:", e);
+                document.body.classList.remove("auth-locked");
+                setAuthMessage(`Erro ao inicializar o Atlas: ${e?.message || e}`);
+                const loader = document.getElementById("loader");
+                if (loader) loader.style.display = "none";
+                return;
+            }'''
+if old_init in s:
+    s = s.replace(old_init, new_init, 1)
+
 start_marker = '    async function verificarSessaoAtlas() {'
 end_marker = '    verificarSessaoAtlas();'
 start = s.find(start_marker)
