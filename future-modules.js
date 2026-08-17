@@ -141,14 +141,7 @@
         document.head.appendChild(link);
     }
 
-    if (!document.getElementById('atlas-home-dashboard-loader')) {
-        const script = document.createElement('script');
-        script.id = 'atlas-home-dashboard-loader';
-        script.src = 'home-dashboard.js?v=2';
-        script.defer = true;
-        document.head.appendChild(script);
-    }
-
+    // O antigo home-dashboard foi substituído pela camada visual segura landing-polish.js.
     // Comparecimento e Abstenção permanece desativado.
 
     if (!document.getElementById('atlas-evolution-loader')) {
