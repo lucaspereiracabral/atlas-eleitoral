@@ -158,4 +158,12 @@
         script.defer = true;
         document.head.appendChild(script);
     }
+
+    if (!document.getElementById('atlas-chart-recovery-loader')) {
+        const script = document.createElement('script');
+        script.id = 'atlas-chart-recovery-loader';
+        script.src = 'chart-recovery.js?v=1';
+        script.defer = true;
+        document.body.appendChild(script);
+    }
 })();
