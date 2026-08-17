@@ -1883,8 +1883,10 @@ body:not(.auth-locked) #auth-gate { display: none; }
             } catch (e) {
                 atlasInicializado = false;
                 console.error("Erro ao inicializar o Atlas:", e);
-                document.body.classList.add("auth-locked");
-                setAuthMessage("Não foi possível carregar os dados protegidos do Atlas.");
+                document.body.classList.remove("auth-locked");
+                setAuthMessage(`Erro ao inicializar o Atlas: ${e?.message || e}`);
+                const loader = document.getElementById("loader");
+                if (loader) loader.style.display = "none";
                 return;
             }
         }
@@ -1945,6 +1947,8 @@ body:not(.auth-locked) #auth-gate { display: none; }
         setAuthMessage("");
         setTimeout(() => email?.focus(), 50);
     }
+
+    let authLiberacaoEmCurso = false;
 
     let authLiberacaoEmCurso = false;
 
