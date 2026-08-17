@@ -71,6 +71,9 @@
 .party-chart-wrap{height:780px!important}
 .analytics-selection{font-size:9px!important;padding:6px 9px!important}
 
+/* TRE neighborhood list — show only official electorate */
+#lista-tre .item-badges .badge.purple{display:none!important}
+
 /* Chart.js canvas smoothing / whitespace */
 .analytics-card canvas{max-width:100%!important}
 
