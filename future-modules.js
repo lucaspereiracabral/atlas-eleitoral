@@ -175,4 +175,12 @@
         script.defer = true;
         document.body.appendChild(script);
     }
+
+    if (!document.getElementById('atlas-recursos-loader')) {
+        const script = document.createElement('script');
+        script.id = 'atlas-recursos-loader';
+        script.src = 'recursos-federais.js?v=1';
+        script.defer = true;
+        document.body.appendChild(script);
+    }
 })();
