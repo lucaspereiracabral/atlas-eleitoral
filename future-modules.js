@@ -183,4 +183,12 @@
         script.defer = true;
         document.body.appendChild(script);
     }
+
+    if (!document.getElementById('atlas-notas-metodologicas-loader')) {
+        const script = document.createElement('script');
+        script.id = 'atlas-notas-metodologicas-loader';
+        script.src = 'notas-metodologicas.js?v=1';
+        script.defer = true;
+        document.body.appendChild(script);
+    }
 })();
