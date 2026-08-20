@@ -82,9 +82,7 @@
         return false;
     }
 
-    function removerDiagnostico() {
-        document.getElementById('buffer-diagnostico')?.remove();
-    }
+    function removerDiagnostico() { document.getElementById('buffer-diagnostico')?.remove(); }
 
     function calcular(force = false) {
         const painel = document.getElementById('buffer-tool');
@@ -110,9 +108,7 @@
                 if (pop > 0) total += pop;
             }
             out.innerText = format(total);
-        } catch (e) {
-            console.error(`${VERSAO} erro`, e);
-        }
+        } catch (e) { console.error(`${VERSAO} erro`, e); }
     }
 
     function iniciar() {
@@ -134,61 +130,21 @@
 // Tema executivo e módulos analíticos.
 (() => {
     if (!document.getElementById('atlas-dashboard-theme')) {
-        const link = document.createElement('link');
-        link.id = 'atlas-dashboard-theme';
-        link.rel = 'stylesheet';
-        link.href = 'dashboard-theme.css?v=2';
-        document.head.appendChild(link);
+        const link = document.createElement('link'); link.id = 'atlas-dashboard-theme'; link.rel = 'stylesheet'; link.href = 'dashboard-theme.css?v=2'; document.head.appendChild(link);
     }
 
-    // O antigo home-dashboard foi substituído pela camada visual segura landing-polish.js.
-    // Comparecimento e Abstenção permanece desativado.
-
-    if (!document.getElementById('atlas-evolution-loader')) {
-        const script = document.createElement('script');
-        script.id = 'atlas-evolution-loader';
-        script.src = 'evolution.js?v=2';
-        script.defer = true;
-        document.head.appendChild(script);
-    }
-
-    if (!document.getElementById('atlas-chart-recovery-loader')) {
-        const script = document.createElement('script');
-        script.id = 'atlas-chart-recovery-loader';
-        script.src = 'chart-recovery.js?v=1';
-        script.defer = true;
-        document.body.appendChild(script);
-    }
-
-    if (!document.getElementById('atlas-landing-polish-loader')) {
-        const script = document.createElement('script');
-        script.id = 'atlas-landing-polish-loader';
-        script.src = 'landing-polish.js?v=1';
-        script.defer = true;
-        document.body.appendChild(script);
-    }
-
-    if (!document.getElementById('atlas-ui-fixes-loader')) {
-        const script = document.createElement('script');
-        script.id = 'atlas-ui-fixes-loader';
-        script.src = 'ui-fixes.js?v=1';
-        script.defer = true;
-        document.body.appendChild(script);
-    }
-
-    if (!document.getElementById('atlas-recursos-loader')) {
-        const script = document.createElement('script');
-        script.id = 'atlas-recursos-loader';
-        script.src = 'recursos-federais.js?v=1';
-        script.defer = true;
-        document.body.appendChild(script);
-    }
-
-    if (!document.getElementById('atlas-notas-metodologicas-loader')) {
-        const script = document.createElement('script');
-        script.id = 'atlas-notas-metodologicas-loader';
-        script.src = 'notas-metodologicas.js?v=1';
-        script.defer = true;
-        document.body.appendChild(script);
-    }
+    const loaders = [
+        ['atlas-evolution-loader','evolution.js?v=2','head'],
+        ['atlas-chart-recovery-loader','chart-recovery.js?v=1','body'],
+        ['atlas-landing-polish-loader','landing-polish.js?v=1','body'],
+        ['atlas-ui-fixes-loader','ui-fixes.js?v=1','body'],
+        ['atlas-recursos-loader','recursos-federais.js?v=1','body'],
+        ['atlas-notas-metodologicas-loader','notas-metodologicas.js?v=1','body'],
+        ['atlas-admin-usuarios-loader','admin-usuarios.js?v=2','body']
+    ];
+    loaders.forEach(([id,src,dest])=>{
+        if(document.getElementById(id)) return;
+        const script=document.createElement('script'); script.id=id; script.src=src; script.defer=true;
+        (dest==='head'?document.head:document.body).appendChild(script);
+    });
 })();
