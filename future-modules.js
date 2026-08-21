@@ -109,8 +109,8 @@
         ['atlas-ui-fixes-loader','ui-fixes.js?v=1','body'],
         ['atlas-recursos-loader','recursos-federais.js?v=1','body'],
         ['atlas-notas-metodologicas-loader','notas-metodologicas.js?v=1','body'],
-        ['atlas-admin-usuarios-loader','admin-usuarios.js?v=4','body'],
-        ['atlas-request-access-loader','solicitar-acesso.js?v=2','body']
+        ['atlas-admin-usuarios-loader','admin-usuarios.js?v=5','body'],
+        ['atlas-request-access-loader','solicitar-acesso.js?v=3','body']
     ];
     loaders.forEach(([id,src,dest])=>{
         if(document.getElementById(id)) return;
