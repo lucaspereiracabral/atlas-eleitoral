@@ -466,6 +466,8 @@ body:not(.auth-locked) #auth-gate { display: none; }
 
     let camadaBairrosTRE = null;
     let camadaLocaisTRE = L.layerGroup().addTo(mapTRE);
+    let camadaSetoresIBGE = null;
+    let camadaLocaisIBGE = L.layerGroup().addTo(mapIBGE);
     
     // VARS DE BUFFER
     let bufferCircle = null;
@@ -1068,12 +1070,50 @@ body:not(.auth-locked) #auth-gate { display: none; }
         return data.conteudo;
     }
 
+    let inicializacaoAtlasPromise = null;
+
     async function init() {
+        if(!inicializacaoAtlasPromise) {
+            inicializacaoAtlasPromise = inicializarAtlas();
+        }
+
+        try {
+            return await inicializacaoAtlasPromise;
+        } catch(error) {
+            inicializacaoAtlasPromise = null;
+            throw error;
+        }
+    }
+
+    async function inicializarAtlas() {
         const [bairros, locais, setores] = await Promise.all([
             loadGeoJsonPrivado("bairros_itajai.geojson"),
             loadGeoJsonPrivado("locais_de_votacao_e_secoes.geojson"),
             loadGeoJsonPrivado("setores_itajai_2022_demografico.geojson")
         ]);
+
+        // A inicialização precisa ser idempotente. Eventos simultâneos da sessão
+        // não podem anexar novamente locais, zonas, totais ou camadas ao mapa.
+        dadosLocais = [];
+        popPorBairro = {};
+        elPorBairro = {};
+        camadaLocaisTRE.clearLayers();
+        camadaLocaisIBGE.clearLayers();
+
+        if(camadaBairrosTRE) {
+            mapTRE.removeLayer(camadaBairrosTRE);
+            camadaBairrosTRE = null;
+        }
+
+        if(camadaSetoresIBGE) {
+            mapIBGE.removeLayer(camadaSetoresIBGE);
+            camadaSetoresIBGE = null;
+        }
+
+        const selZona = document.getElementById("filtroZona");
+        if(selZona) {
+            selZona.innerHTML = '<option value="TODAS">Todas as Zonas Eleitorais</option>';
+        }
 
         geoBairros = bairros;
         geoSetores = setores;
@@ -1201,7 +1241,7 @@ body:not(.auth-locked) #auth-gate { display: none; }
             );
 
             // MAPA COROPLÉTICO: população apta a votar estimada por setor.
-            L.geoJSON(geoSetores, {
+            camadaSetoresIBGE = L.geoJSON(geoSetores, {
                 style: function(f) {
                     const popApta = calcularPopulacaoApta2026(f.properties || {});
 
@@ -1263,8 +1303,31 @@ body:not(.auth-locked) #auth-gate { display: none; }
         }
 
         // PROCESSA LOCAIS TRE
-        if(locais) {
+        if(locais && Array.isArray(locais.features)) {
+            const locaisUnicos = new Map();
+
             locais.features.forEach(l => {
+                const p = l.properties || {};
+                const chave = [
+                    getProp(p, ["zona_ele_1", "zona"]),
+                    getProp(p, ["local_de_1"]),
+                    getProp(p, ["bairro_1", "bairro"])
+                ].map(normalizarNome).join("|");
+
+                const anterior = locaisUnicos.get(chave);
+                const totalAtual = parseNum(getProp(p, ["total_el_1"]));
+                const totalAnterior = anterior
+                    ? parseNum(getProp(anterior.properties || {}, ["total_el_1"]))
+                    : -1;
+
+                // Algumas versões da base trazem o mesmo local mais de uma vez.
+                // Conservamos uma feição por local e o maior total informado.
+                if(!anterior || totalAtual > totalAnterior) {
+                    locaisUnicos.set(chave, l);
+                }
+            });
+
+            Array.from(locaisUnicos.values()).forEach(l => {
                 const p = l.properties;
                 const zona = getProp(p, ["zona_ele_1", "zona"]);
                 if(zona) zonasSet.add(zona);
@@ -1293,13 +1356,12 @@ body:not(.auth-locked) #auth-gate { display: none; }
                 });
 
                 // Plota Ponto Laranja no mapa IBGE para servir de gatilho pro Raio
-                const mkIBGE = L.circleMarker(latlng, {radius: 5, fillColor: "#f59e0b", color: "#fff", weight: 2, fillOpacity: 1, zIndexOffset: 1000}).addTo(mapIBGE);
+                const mkIBGE = L.circleMarker(latlng, {radius: 5, fillColor: "#f59e0b", color: "#fff", weight: 2, fillOpacity: 1, zIndexOffset: 1000}).addTo(camadaLocaisIBGE);
                 mkIBGE.bindTooltip(`<b>${escapeHtml(nomeLoc)}</b><br><small>Clique para calcular Raio</small>`);
                 mkIBGE.on('click', () => abrirBuffer(latlng, nomeLoc));
             });
 
             // Select Zonas
-            const selZona = document.getElementById("filtroZona");
             Array.from(zonasSet).sort().forEach(z => {
                 const opt = document.createElement("option"); opt.value = z; opt.innerText = `Zona ${z}`; selZona.appendChild(opt);
             });
