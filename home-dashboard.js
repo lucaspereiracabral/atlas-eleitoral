@@ -97,7 +97,7 @@
             <h2 class="atlas-home-title">Itajaí em números</h2>
             <p class="atlas-home-subtitle">Indicadores territoriais e demográficos para contextualizar a leitura eleitoral do município e apoiar análises comparativas dentro do Atlas.</p>
           </div>
-          <div class="atlas-home-badge">Atualização de referência • 2025</div>
+          <div class="atlas-home-badge">Atualização de referência • 2026</div>
         </div>
 
         <div class="atlas-muni-grid">
@@ -117,8 +117,8 @@
             <div class="atlas-muni-note">pessoas</div>
           </article>
           <article class="atlas-muni-card">
-            <div class="atlas-muni-label">População estimada • 2025</div>
-            <div class="atlas-muni-value">294.850</div>
+            <div class="atlas-muni-label">População estimada • 2026</div>
+            <div class="atlas-muni-value">302.247</div>
             <div class="atlas-muni-note">pessoas</div>
           </article>
         </div>
@@ -128,22 +128,22 @@
             <div class="atlas-panel-head">
               <div>
                 <h3 class="atlas-panel-title">Evolução populacional</h3>
-                <p class="atlas-panel-sub">Comparação entre o Censo 2022 e a estimativa populacional de 2025.</p>
+                <p class="atlas-panel-sub">Comparação entre o Censo 2022 e a estimativa populacional de 2026.</p>
               </div>
             </div>
             <div class="atlas-pop-bars">
               <div class="atlas-pop-row">
                 <div class="atlas-pop-name">Censo 2022</div>
-                <div class="atlas-pop-track"><div class="atlas-pop-fill" style="width:89.55%"></div></div>
+                <div class="atlas-pop-track"><div class="atlas-pop-fill" style="width:87.36%"></div></div>
                 <div class="atlas-pop-number">264.054</div>
               </div>
               <div class="atlas-pop-row">
-                <div class="atlas-pop-name">Estimativa 2025</div>
+                <div class="atlas-pop-name">Estimativa 2026</div>
                 <div class="atlas-pop-track"><div class="atlas-pop-fill est" style="width:100%"></div></div>
-                <div class="atlas-pop-number">294.850</div>
+                <div class="atlas-pop-number">302.247</div>
               </div>
             </div>
-            <div class="atlas-growth">+30.796 pessoas em relação ao Censo 2022 • crescimento aproximado de 11,7%</div>
+            <div class="atlas-growth">+38.193 pessoas em relação ao Censo 2022 • crescimento aproximado de 14,5%</div>
           </div>
 
           <div class="atlas-panel">
