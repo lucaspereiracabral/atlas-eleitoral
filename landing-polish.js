@@ -77,7 +77,7 @@ function buildInstitutional(){
     <article class="inst-card"><div class="inst-icon">${icons.govt}</div><div class="inst-label">Prefeito</div><div class="inst-value name">ROBISON JOSÉ COELHO</div><div class="inst-note">Município de Itajaí</div></article>
     <article class="inst-card"><div class="inst-icon">${icons.area}</div><div class="inst-label">Área Territorial</div><div class="inst-value">289,22 km²</div><div class="inst-note">Território municipal</div></article>
     <article class="inst-card"><div class="inst-icon">${icons.people}</div><div class="inst-label">População no último censo</div><div class="inst-value">264.054</div><div class="inst-note">pessoas • 2022</div></article>
-    <article class="inst-card"><div class="inst-icon">${icons.trend}</div><div class="inst-label">População estimada</div><div class="inst-value">294.850</div><div class="inst-note">pessoas • 2025</div></article>
+    <article class="inst-card"><div class="inst-icon">${icons.trend}</div><div class="inst-label">População estimada</div><div class="inst-value">302.247</div><div class="inst-note">pessoas • 2026</div></article>
    </div>
  </div>`;
  if(grid)grid.insertAdjacentElement('afterend',section);else container.appendChild(section);
