@@ -458,11 +458,17 @@ body:not(.auth-locked) #auth-gate { display: none; }
     // MAPAS LEAFLET
     const mapTRE = L.map("mapTRE", { zoomControl: false }).setView([-26.91, -48.66], 13);
     L.control.zoom({ position: "topright" }).addTo(mapTRE);
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { maxZoom: 19 }).addTo(mapTRE);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(mapTRE);
     
     const mapIBGE = L.map("mapIBGE", { zoomControl: false }).setView([-26.91, -48.66], 13);
     L.control.zoom({ position: "topright" }).addTo(mapIBGE);
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { maxZoom: 19 }).addTo(mapIBGE);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(mapIBGE);
 
     let camadaBairrosTRE = null;
     let camadaLocaisTRE = L.layerGroup().addTo(mapTRE);
